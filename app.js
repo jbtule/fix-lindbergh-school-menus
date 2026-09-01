@@ -912,6 +912,27 @@ document.getElementById("todayBtn").addEventListener("click", goToToday);
 document.getElementById("dayViewBtn").addEventListener("click", () => setViewMode("day"));
 document.getElementById("weekViewBtn").addEventListener("click", () => setViewMode("week"));
 
+// Drops any stored selections/exclusions that no longer exist in the
+// current config - e.g. left over in localStorage from testing an older
+// version of this site. Otherwise they'd inflate the "Menus"/"Avoid"
+// badge counts forever without ever showing up as a checked box or a
+// rendered section (both already silently skip unknown ids) - exactly
+// the "count is 1 higher than what's actually selected" bug this fixes.
+function pruneStaleSelections() {
+  const validIds = state.selectedIds.filter((id) => MENU_BY_ID[id]);
+  if (validIds.length !== state.selectedIds.length) {
+    state.selectedIds = validIds;
+    saveSelectedIds();
+  }
+  const validAllergens = new Set(EXCLUDE_OPTIONS.map((o) => o.field));
+  const validExcluded = state.excludedAllergens.filter((f) => validAllergens.has(f));
+  if (validExcluded.length !== state.excludedAllergens.length) {
+    state.excludedAllergens = validExcluded;
+    saveExcludedAllergens();
+  }
+}
+pruneStaleSelections();
+
 buildPicker();
 updatePickerCount();
 buildExcludePicker();
