@@ -8,7 +8,11 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>Lindbergh School Menus</h1>
+    <h1>
+      Lindbergh School Menus
+      <span class="unofficialBadge">unofficial</span>
+      <button id="disclaimerToggle" class="disclaimerLink">disclaimer</button>
+    </h1>
     <div class="topbarButtons">
       <button id="excludeToggle" class="pickerToggle" aria-expanded="false" aria-controls="excludePicker">
         Avoid <span id="excludeCount" class="badge"></span>
@@ -42,6 +46,23 @@
     </div>
   </aside>
   <div id="excludePickerScrim" class="pickerScrim" hidden></div>
+
+  <div id="disclaimerScrim" class="pickerScrim" hidden></div>
+  <div id="disclaimerModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle" hidden>
+    <div class="pickerHeader">
+      <h2 id="disclaimerTitle">Disclaimer</h2>
+      <button id="disclaimerClose" class="iconBtn" aria-label="Close">&times;</button>
+    </div>
+    <div class="modalBody">
+      <p>This is an <strong>unofficial</strong>, parent-made site - not built, run, or endorsed by Lindbergh School District.</p>
+      <p>It works by calling the district's own public menu system directly, the same one <a href="https://www.schoolnutritionandfitness.com/webmenus2/" target="_blank" rel="noopener">schoolnutritionandfitness.com</a> uses - just reformatted to be easier to use day-to-day.</p>
+      <p>That system isn't a published, supported integration, so it could change or be shut off at any time without notice, which would break this site.</p>
+      <p>Provided purely for convenience. Use at your own risk, and double-check anything that actually matters - especially allergy or dietary information - against the official source.</p>
+    </div>
+    <div class="pickerFooter">
+      <button id="disclaimerDone" class="primaryBtn">Got it</button>
+    </div>
+  </div>
 
   <nav class="dayNav">
     <button id="prevDay" class="iconBtn" aria-label="Previous day">&larr;</button>

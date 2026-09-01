@@ -309,6 +309,16 @@ function closeExcludePicker() {
   setPanelOpen("excludePicker", "excludePickerScrim", "excludeToggle", false);
 }
 
+// ---------- Disclaimer ----------
+
+function openDisclaimer() {
+  setPanelOpen("disclaimerModal", "disclaimerScrim", "disclaimerToggle", true);
+}
+
+function closeDisclaimer() {
+  setPanelOpen("disclaimerModal", "disclaimerScrim", "disclaimerToggle", false);
+}
+
 // ---------- Day nav ----------
 
 const WEEKDAY_NAMES = [
@@ -727,6 +737,10 @@ document.getElementById("excludeToggle").addEventListener("click", openExcludePi
 document.getElementById("excludePickerClose").addEventListener("click", closeExcludePicker);
 document.getElementById("excludePickerDone").addEventListener("click", closeExcludePicker);
 document.getElementById("excludePickerScrim").addEventListener("click", closeExcludePicker);
+document.getElementById("disclaimerToggle").addEventListener("click", openDisclaimer);
+document.getElementById("disclaimerClose").addEventListener("click", closeDisclaimer);
+document.getElementById("disclaimerDone").addEventListener("click", closeDisclaimer);
+document.getElementById("disclaimerScrim").addEventListener("click", closeDisclaimer);
 document.getElementById("prevDay").addEventListener("click", () => changeDay(-1));
 document.getElementById("nextDay").addEventListener("click", () => changeDay(1));
 document.getElementById("todayBtn").addEventListener("click", goToToday);
