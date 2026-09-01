@@ -576,16 +576,17 @@ body:not(.week-view) .menuSection {
 .sideGroup {
   margin: 0.4rem 0;
   font-size: 0.85rem;
-  color: var(--muted);
 }
 
 .sideLabel {
   font-weight: 600;
+  color: var(--muted);
 }
 
 .sideList {
   margin: 0.1rem 0 0;
   padding-left: 1.1rem;
+  color: var(--fg);
 }
 
 @media (max-width: 480px) {
