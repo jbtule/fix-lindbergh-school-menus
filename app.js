@@ -574,6 +574,11 @@ const TRANSLATE_WIDGET_ENABLED = true;
 // in the Language picker re-inits the widget without this restriction.
 const TRANSLATE_LANGUAGES = "en,es,fr,hy,zh-CN,ko,pt,ru,vi";
 const TRANSLATE_FULL_LIST_KEY = "lsm.translateFullList";
+// One-shot flag (sessionStorage, not localStorage - only meant to
+// survive the single reload the checkbox triggers, not linger forever)
+// so the panel reopens automatically afterward instead of the toggle
+// dropping the user back at a closed picker.
+const REOPEN_TRANSLATE_PANEL_KEY = "lsm.reopenTranslatePanel";
 
 function loadTranslateFullList() {
   try {
@@ -1084,6 +1089,12 @@ document.getElementById("translateFullListToggle").addEventListener("change", (e
   // version of the same thing: it goes through loadTranslateWidget()
   // fresh, same as any normal page load.
   saveTranslateFullList(e.target.checked);
+  try {
+    sessionStorage.setItem(REOPEN_TRANSLATE_PANEL_KEY, "1");
+  } catch (err) {
+    /* ignore - see saveSelectedIds; worst case the panel just doesn't
+       reopen automatically */
+  }
   location.reload();
 });
 document.getElementById("disclaimerToggle").addEventListener("click", openDisclaimer);
@@ -1181,6 +1192,19 @@ updateViewModeButtons();
 updateBodyViewModeClass();
 renderSections();
 loadTranslateWidget();
+
+// See REOPEN_TRANSLATE_PANEL_KEY - only ever set right before the
+// reload the "Show full language list" checkbox triggers, and cleared
+// immediately here so it doesn't reopen the panel on any later, normal
+// visit or refresh.
+try {
+  if (sessionStorage.getItem(REOPEN_TRANSLATE_PANEL_KEY)) {
+    sessionStorage.removeItem(REOPEN_TRANSLATE_PANEL_KEY);
+    openLanguagePicker();
+  }
+} catch (e) {
+  /* ignore - see saveSelectedIds */
+}
 
 // Both of these are only computed at click/render time, so a tab left
 // open across the 4pm cutoff (or midnight) would otherwise show a stale
