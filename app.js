@@ -398,6 +398,40 @@ function sortItemsForDay(items) {
   });
 }
 
+// Splits a day's items (in original API order - order matters here) into
+// station-shaped chunks: one or more Entrees, plus the sides that follow
+// them before the next Entree run starts (that station's own sides - e.g.
+// fries with a burger combo). A "Shared Items" item (category Ancillary)
+// marks the end of the per-station portion - anything after it is common
+// across every station (the salad bar, milk, condiments) and comes back
+// separately as `commonSides` rather than attached to the last group.
+// Used only for High Schools - see the comment where this is called in
+// renderOneMenu. With no Shared Items marker (every other menu, since
+// they never interleave sides between entrees), this collapses to a
+// single group holding all the sides, identical to the old flat layout.
+function groupEntreeRuns(dayItemsInOrder) {
+  const sentinelIndex = dayItemsInOrder.findIndex(
+    (it) => it.product.category === "Ancillary" && it.product.name.trim() === "Shared Items"
+  );
+  const stationItems = sentinelIndex === -1 ? dayItemsInOrder : dayItemsInOrder.slice(0, sentinelIndex);
+  const commonSides = sentinelIndex === -1 ? [] : dayItemsInOrder.slice(sentinelIndex + 1);
+
+  const groups = [];
+  let current = null;
+  for (const it of stationItems) {
+    if (it.product.category === "Entrees") {
+      if (!current || current.sides.length > 0) {
+        current = { entrees: [], sides: [] };
+        groups.push(current);
+      }
+      current.entrees.push(it);
+    } else if (current) {
+      current.sides.push(it);
+    }
+  }
+  return { groups, commonSides };
+}
+
 // Display order for the district's own non-entree categories. Anything not
 // listed here (including the occasional blank category - a gap in their
 // data, e.g. "Mayo Dispenser") is grouped under "Other" at the end.
@@ -520,26 +554,61 @@ async function renderOneMenu(menuId, bodyEl) {
   // rotating cereal options, at lunch it's usually 2 (sometimes 3) dishes.
   // Everything else (fruit, milk, condiments) comes with the tray either
   // way, so it's called out separately rather than lumped into one list.
-  const entreeItems = sortItemsForDay(dayItems.filter((it) => it.product.category === "Entrees"));
-  const sideItems = sortItemsForDay(dayItems.filter((it) => it.product.category !== "Entrees"));
+  //
+  // High school lunch only: it's actually split across several food
+  // stations (Ballpark Classics, Taco Street, etc. - confirmed against
+  // the district's other menu site), each with its own entrees. There's
+  // no field identifying which station an item belongs to, but stations
+  // are entered as contiguous runs - one or more entrees, then that
+  // station's specific sides, before the next station's entrees start.
+  // groupEntreeRuns() finds those runs from the item order itself: real
+  // separation shows up as more than one group. Some high school days
+  // happen to have no side item between two stations, so it'll still
+  // under-split those - not perfect, but never worse than one flat box.
+  // Deliberately scoped to High Schools only, rather than relying on it
+  // being a no-op everywhere else.
+  const { groups: entreeGroups, commonSides } =
+    info.group === "High Schools"
+      ? groupEntreeRuns(dayItems)
+      : {
+          // Every other menu: exactly what it's always been - one group
+          // holding all the entrees, its sides right below it, nothing
+          // held back as "common".
+          groups: (() => {
+            const entrees = dayItems.filter((it) => it.product.category === "Entrees");
+            const sides = dayItems.filter((it) => it.product.category !== "Entrees");
+            return entrees.length ? [{ entrees, sides }] : [];
+          })(),
+          commonSides: [],
+        };
 
-  const choicesHtml = entreeItems.length
-    ? `
-      <div class="choiceGroup">
-        <div class="choiceLabel">Entree</div>
-        <ul class="choiceList">
-          ${entreeItems.map((it) => `<li>${renderItemLine(it)}</li>`).join("")}
-        </ul>
-      </div>
-    `
-    : "";
+  // Each station's own sides (fries with a combo, toppings for a build-
+  // your-own, etc.) render right under its Entree box, not pooled with
+  // everyone else's - see groupEntreeRuns(). Only truly shared items
+  // (after the "Shared Items" marker, or the whole day when there's no
+  // station split at all) land in the common section at the bottom.
+  const choicesHtml = entreeGroups
+    .map((group) => {
+      const entrees = sortItemsForDay(group.entrees);
+      const sides = sortItemsForDay(group.sides);
+      return `
+        <div class="choiceGroup">
+          <div class="choiceLabel">Entree</div>
+          <ul class="choiceList">
+            ${entrees.map((it) => `<li>${renderItemLine(it)}</li>`).join("")}
+          </ul>
+        </div>
+        ${renderSideGroups(sides)}
+      `;
+    })
+    .join("");
 
-  const sidesHtml = renderSideGroups(sideItems);
+  const commonSidesHtml = renderSideGroups(sortItemsForDay(commonSides));
 
   bodyEl.innerHTML = `
     ${gradeBadge ? `<div class="sectionMeta">${gradeBadge}</div>` : ""}
     ${choicesHtml}
-    ${sidesHtml}
+    ${commonSidesHtml}
   `;
 }
 

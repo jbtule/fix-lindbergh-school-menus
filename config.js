@@ -17,6 +17,46 @@
 //      (Elementary Schools' "Idea Center" menus have no depth_1_id: use
 //      { depth_0_id: "32105" } alone.)
 
+// ---------------------------------------------------------------------
+// High school lunch "stations" - researched but NOT used (see below).
+//
+// Lindbergh High lunch is actually served from several named food
+// stations (like a food court), confirmed via the district's OTHER menu
+// site, Nutrislice (lindberghschools.nutrislice.com - being phased out
+// in favor of schoolnutritionandfitness.com, hence this project). Full
+// month PDFs exported from Nutrislice gave a fixed, ordered roster per
+// month:
+//
+//   August 2026 (10 stations): Ballpark Classics, Bento Box, Build Your
+//   Own Classic Stacks, Classic Stacks, Luigi's Eatery, Panini Station,
+//   Red Dragon, Taco Street, Traditional Cuisine, Wing'N It
+//
+//   September 2026 (11 stations): Ballpark Classics, Bento Box, Build
+//   Your Own Classic Stacks, Classic Stacks, Little Italy, Luigi's
+//   Eatery, Panini Station, Red Dragon, Taco Street, Traditional
+//   Cuisine, Wing'N It
+//
+// This looked like a strong lead for labeling groupEntreeRuns()'s output
+// (app.js) by name/position instead of a generic "Entree" label. It
+// isn't usable, though - checked every day in both months against the
+// schoolnutritionandfitness.com API data and NO day produced a clean
+// split matching that day's station count. Two independent problems,
+// both confirmed:
+//   1. Not every station runs every day (e.g. Wing'N It was absent from
+//      Sept 1's data entirely), so there's no single fixed "expected
+//      count" to check a day's group count against in the first place.
+//   2. Even among the stations that DO run, the data frequently drops
+//      the side item that would separate two adjacent stations, so
+//      groupEntreeRuns() merges them into one group (worst case: 4
+//      stations collapsed into 1 run on Aug 26, the very first day of
+//      school).
+// Position-based labeling would silently mislabel food on most days, so
+// it's not implemented. Revisit only if schoolnutritionandfitness.com's
+// data entry improves (a real per-item station field, or consistently
+// entered separators) - the station tag isn't exposed anywhere in the
+// GraphQL schema fields we've found so far.
+// ---------------------------------------------------------------------
+
 const DISTRICT_SID = "1786638906029";
 
 // The variants every Idea Center menu gets split into. dayFilter is a
