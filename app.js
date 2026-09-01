@@ -33,6 +33,10 @@ const state = {
 // Flat lookup: menuId (the picker's id, which for Idea Center variants is
 // `${baseId}__${variantKey}`) -> menu info.
 //   name        - full display name
+//   baseName    - name without the variant suffix (== name for anything
+//                 that isn't an Idea Center variant) - used as the
+//                 header when several variants get grouped together,
+//                 see groupSelectedMenus()
 //   school      - school name for the section header
 //   group       - site group (Elementary/Middle/High/Pre-K)
 //   apiId       - the real menu-type id to query (== id, except variants)
@@ -43,6 +47,7 @@ for (const g of MENU_GROUPS) {
     for (const m of s.menus) {
       MENU_BY_ID[m.id] = {
         name: m.name,
+        baseName: m.baseName || m.name,
         school: s.school,
         group: g.group,
         apiId: m.baseId || m.id,
@@ -462,14 +467,52 @@ function updateViewModeButtons() {
   document.getElementById("weekViewBtn").setAttribute("aria-pressed", String(state.viewMode === "week"));
 }
 
-// Next (or same, if it already matches) date on/after `from` with the given
-// getDay() weekday. Used to tell a weekday-restricted menu when it's next
-// showing, when the current day doesn't match.
-function nextOccurrence(from, weekday) {
-  const d = new Date(from);
-  const diff = (weekday - d.getDay() + 7) % 7;
-  d.setDate(d.getDate() + diff);
-  return d;
+// Next (or same, if it already matches) date on/after `from` matching any
+// weekday in the set. Used to tell a weekday-restricted combined menu (see
+// groupSelectedMenus()) when it's next showing, when the current day
+// doesn't match any of its selected days.
+function nextOccurrenceAmong(from, weekdaySet) {
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(from);
+    d.setDate(d.getDate() + i);
+    if (weekdaySet.has(d.getDay())) return d;
+  }
+  return from; // weekdaySet was empty - shouldn't happen when this is called
+}
+
+// Idea Center variants (Full Week + one per grade's day) all share the
+// same underlying apiId - selecting several combines them into one
+// section instead of showing duplicates, since they're all "the same
+// menu," just restricted to different days. Every other menu has an
+// apiId unique to itself, so it can never merge with anything else here.
+// hasFullWeek wins over specificDays for *whether content shows* (Full
+// Week has no day restriction at all), but specificDays alone still
+// drives the grade badge - see computeDayHtml() - so a grade badge only
+// ever shows on a day that was explicitly selected as that grade's day,
+// never just because Full Week happens to include it too.
+function groupSelectedMenus(selectedIds) {
+  const byApiId = new Map();
+  const order = [];
+  for (const id of selectedIds) {
+    const info = MENU_BY_ID[id];
+    if (!info) continue; // stale id from an old config, ignore
+    if (!byApiId.has(info.apiId)) {
+      const combined = {
+        name: info.baseName,
+        school: info.school,
+        group: info.group,
+        apiId: info.apiId,
+        hasFullWeek: false,
+        specificDays: new Set(),
+      };
+      byApiId.set(info.apiId, combined);
+      order.push(combined);
+    }
+    const combined = byApiId.get(info.apiId);
+    if (info.dayFilter === null) combined.hasFullWeek = true;
+    else combined.specificDays.add(info.dayFilter);
+  }
+  return order;
 }
 
 // Monday-Friday of the week containing `date` (school menus never have
@@ -602,25 +645,28 @@ async function renderSections() {
     emptyState.hidden = false;
     return;
   }
+  const groups = groupSelectedMenus(state.selectedIds);
+  if (groups.length === 0) {
+    container.innerHTML = "";
+    emptyState.hidden = false;
+    return;
+  }
   emptyState.hidden = true;
 
   container.innerHTML = "";
-  const sectionEls = {};
-  for (const id of state.selectedIds) {
-    const info = MENU_BY_ID[id];
-    if (!info) continue; // stale id from an old config, ignore
+  const sectionEls = groups.map((group) => {
     const section = document.createElement("section");
     section.className = "menuSection";
     section.innerHTML = `
-      <h2>${info.school} - ${info.name}</h2>
+      <h2>${group.school} - ${group.name}</h2>
       <div class="sectionBody"><p class="loading">Loading...</p></div>
     `;
     container.appendChild(section);
-    sectionEls[id] = section.querySelector(".sectionBody");
-  }
+    return section.querySelector(".sectionBody");
+  });
 
   const renderOne = state.viewMode === "week" ? renderOneMenuWeek : renderOneMenu;
-  await Promise.all(state.selectedIds.map((id) => renderOne(id, sectionEls[id])));
+  await Promise.all(groups.map((group, i) => renderOne(group, sectionEls[i])));
 
   if (state.viewMode === "week") {
     syncWeekScrolls();
@@ -690,8 +736,8 @@ function syncWeekScrolls() {
 async function computeDayHtml(info, date) {
   const weekday = date.getDay();
 
-  if (info.dayFilter !== null && weekday !== info.dayFilter) {
-    const next = nextOccurrence(date, info.dayFilter);
+  if (!info.hasFullWeek && !info.specificDays.has(weekday)) {
+    const next = nextOccurrenceAmong(date, info.specificDays);
     return `<p class="notScheduled">Not scheduled this day. Next: ${formatDate(next)}.</p>`;
   }
 
@@ -721,7 +767,11 @@ async function computeDayHtml(info, date) {
     return `<p class="empty">No items published for this day yet.</p>`;
   }
 
-  const grade = IDEA_CENTER_GRADE_BY_WEEKDAY[weekday];
+  // Only shows on a day that was explicitly selected as that grade's day
+  // (specificDays) - never just because "Full Week" happens to include
+  // it too. Selecting Full Week alone (no specific grade-day alongside
+  // it) shows no grade badges at all.
+  const grade = info.specificDays.has(weekday) ? IDEA_CENTER_GRADE_BY_WEEKDAY[weekday] : null;
   const gradeBadge =
     info.school === "Idea Center" && grade
       ? `<span class="gradeBadge">${grade}</span>`
@@ -790,15 +840,13 @@ async function computeDayHtml(info, date) {
   `;
 }
 
-async function renderOneMenu(menuId, bodyEl) {
+async function renderOneMenu(info, bodyEl) {
   if (!bodyEl) return;
-  const info = MENU_BY_ID[menuId];
   bodyEl.innerHTML = await computeDayHtml(info, state.currentDate);
 }
 
-async function renderOneMenuWeek(menuId, bodyEl) {
+async function renderOneMenuWeek(info, bodyEl) {
   if (!bodyEl) return;
-  const info = MENU_BY_ID[menuId];
   const dates = weekDatesFor(state.currentDate);
   const dayHtmls = await Promise.all(dates.map((d) => computeDayHtml(info, d)));
 
