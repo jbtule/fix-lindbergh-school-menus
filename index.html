@@ -1,3 +1,5 @@
+---
+---
 <!doctype html>
 <html lang="en">
 <head>
@@ -10,7 +12,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Unofficial Menus" />
   <meta name="theme-color" content="#2f6f4f" />
-  <link rel="stylesheet" href="style.css?v=b07e3a94" />
+  <link rel="stylesheet" href="style.css?v=bb874e1c" />
 </head>
 <body>
   <header class="topbar">
@@ -87,7 +89,17 @@
     No menus selected yet. Tap <strong>Menus</strong> above to choose which schools and meals to show.
   </p>
 
-  <script src="version.js?v=fc13a6b8"></script>
+  <footer class="siteFooter">
+    <a class="footerBadge" href="https://github.com/jbtule/fix-lindbergh-school-menus/commit/{{ site.github.build_revision }}" target="_blank" rel="noopener">
+      <span class="footerBadgeLabel">GitHub</span>
+      <span class="footerBadgeValue">{{ site.github.build_revision | slice: 0, 7 }}</span>
+    </a>
+    <a href="https://claude.com/claude-code" target="_blank" rel="noopener">
+      <img src="https://img.shields.io/badge/Made_with-Claude-D97757" alt="Made with Claude" />
+    </a>
+  </footer>
+
+  <script src="version.js?v=c3f2dce9"></script>
   <script src="config.js?v=0c86e709"></script>
   <script src="app.js?v=62775ca0"></script>
 </body>

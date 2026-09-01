@@ -376,6 +376,52 @@ main {
   padding: 0 1rem;
 }
 
+.siteFooter {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 2rem 1rem 1.5rem;
+}
+
+.siteFooter img {
+  display: block;
+  height: 20px;
+}
+
+/* Self-styled rather than an external shields.io image, so it reflects
+   the actual deployed commit (from GitHub Pages' own build record - see
+   loadCommitBadge() in app.js) and matches the page's own light/dark
+   theme instead of always rendering flat/light. */
+.footerBadge {
+  display: inline-flex;
+  align-items: stretch;
+  height: 20px;
+  border-radius: 3px;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 20px;
+  text-decoration: none;
+}
+
+.footerBadgeLabel,
+.footerBadgeValue {
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.footerBadgeLabel {
+  background: var(--muted);
+  color: var(--bg);
+}
+
+.footerBadgeValue {
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
 .menuSection {
   margin-bottom: 2.5rem;
 }
