@@ -480,6 +480,24 @@ body:not(.week-view) .menuSection {
   text-transform: uppercase;
 }
 
+/* Tap-to-reveal name for icon-only allergen badges - see the click
+   handler in app.js. Positioned above the tapped badge; transform
+   handles centering/lifting so the JS only needs the badge's own
+   top-left corner. */
+.tapTooltip {
+  position: fixed;
+  transform: translate(-50%, -100%) translateY(-8px);
+  background: var(--fg);
+  color: var(--bg);
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
 /* ALLERGEN_SHOW_LABELS = true: bordered box with visible chip text instead. */
 /* display: flex (not inline-flex) so it's guaranteed onto its own line
    below the item name/vegetarian badge, rather than only wrapping there

@@ -933,6 +933,38 @@ function pruneStaleSelections() {
 }
 pruneStaleSelections();
 
+// Icon-only allergen badges (ALLERGEN_SHOW_LABELS = false, the default)
+// rely on their title attribute for the name - fine on desktop via
+// hover, but iOS Safari has no touch equivalent for title tooltips at
+// all. This shows a small bubble with that same text on tap instead;
+// the title attribute stays too, so desktop hover keeps working for
+// free. Delegated on document since badges get torn down and rebuilt on
+// every render.
+let openTooltip = null;
+let tooltipTimer = null;
+function closeTooltip() {
+  if (openTooltip) {
+    openTooltip.remove();
+    openTooltip = null;
+  }
+  clearTimeout(tooltipTimer);
+}
+document.addEventListener("click", (e) => {
+  const badge = e.target.closest(".allergenBadge, .allergenBadge-text");
+  closeTooltip();
+  if (!badge || !badge.title) return;
+  e.stopPropagation();
+  const bubble = document.createElement("div");
+  bubble.className = "tapTooltip";
+  bubble.textContent = badge.title;
+  document.body.appendChild(bubble);
+  const rect = badge.getBoundingClientRect();
+  bubble.style.left = `${rect.left + rect.width / 2}px`;
+  bubble.style.top = `${rect.top}px`;
+  openTooltip = bubble;
+  tooltipTimer = setTimeout(closeTooltip, 4000);
+});
+
 buildPicker();
 updatePickerCount();
 buildExcludePicker();
