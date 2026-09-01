@@ -314,14 +314,12 @@ body {
   gap: 0.75rem;
   overflow-x: auto;
   padding-bottom: 0.25rem;
-  /* No scroll-snap here: it fights with syncWeekScrolls() copying scroll
-     position between rows - each row snapping to its own nearest column
-     while also being forced to another row's exact position causes
-     visible jitter. */
+  scroll-snap-type: x proximity;
 }
 
 .weekDayCard {
   flex: 0 0 260px;
+  scroll-snap-align: start;
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 10px;
