@@ -1,0 +1,25 @@
+#!/bin/sh
+# Cache-busts app.js/config.js/style.css in index.html so GitHub Pages'
+# CDN doesn't serve stale assets after a deploy. The version string is a
+# hash of each file's own content, so a file's query param only changes
+# when that file actually changes - not on every commit.
+#
+# This hook lives in the repo (not .git/hooks, which isn't versioned) -
+# activate it once per clone with:
+#   git config core.hooksPath hooks
+
+set -e
+cd "$(git rev-parse --show-toplevel)"
+
+bust() {
+  file="$1"
+  hash=$(shasum -a 256 "$file" | cut -c1-8)
+  sed -E -i.bak "s#(\"$file)(\?v=[a-f0-9]+)?\"#\1?v=$hash\"#" index.html
+  rm -f index.html.bak
+}
+
+bust app.js
+bust config.js
+bust style.css
+
+git add index.html
