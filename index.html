@@ -65,10 +65,14 @@
   </div>
 
   <nav class="dayNav">
-    <button id="prevDay" class="iconBtn" aria-label="Previous day">&larr;</button>
+    <button id="prevDay" class="iconBtn" aria-label="Previous day" title="Previous day">&larr;</button>
     <div id="dayLabel" class="dayLabel"></div>
-    <button id="nextDay" class="iconBtn" aria-label="Next day">&rarr;</button>
-    <button id="todayBtn" class="linkBtn">Today</button>
+    <button id="nextDay" class="iconBtn" aria-label="Next day" title="Next day">&rarr;</button>
+    <button id="todayBtn" class="linkBtn">Jump to Today</button>
+    <div class="viewModeToggle" role="group" aria-label="View mode">
+      <button id="dayViewBtn" class="viewModeBtn" aria-pressed="true">Day</button>
+      <button id="weekViewBtn" class="viewModeBtn" aria-pressed="false">Week</button>
+    </div>
   </nav>
 
   <main id="sections"></main>

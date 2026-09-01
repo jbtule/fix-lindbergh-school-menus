@@ -3,6 +3,7 @@
 
 const STORAGE_KEY = "lsm.selectedMenus";
 const EXCLUDE_STORAGE_KEY = "lsm.excludedAllergens";
+const VIEW_MODE_STORAGE_KEY = "lsm.viewMode";
 
 // After 4pm, school's out and the day's menu is no longer useful - default
 // ahead to tomorrow instead.
@@ -12,6 +13,7 @@ const state = {
   selectedIds: loadSelectedIds(),
   excludedAllergens: loadExcludedAllergens(),
   currentDate: defaultDate(),
+  viewMode: loadViewMode(), // "day" | "week"
 };
 
 // Flat lookup: menuId (the picker's id, which for Idea Center variants is
@@ -85,6 +87,23 @@ function loadExcludedAllergens() {
 function saveExcludedAllergens() {
   try {
     localStorage.setItem(EXCLUDE_STORAGE_KEY, JSON.stringify(state.excludedAllergens));
+  } catch (e) {
+    /* ignore - see saveSelectedIds */
+  }
+}
+
+function loadViewMode() {
+  try {
+    const raw = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+    return raw === "week" ? "week" : "day";
+  } catch (e) {
+    return "day";
+  }
+}
+
+function saveViewMode() {
+  try {
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, state.viewMode);
   } catch (e) {
     /* ignore - see saveSelectedIds */
   }
@@ -339,13 +358,25 @@ function isToday(d) {
 
 function renderDayLabel() {
   const label = document.getElementById("dayLabel");
-  label.textContent = formatDate(state.currentDate);
-  label.classList.toggle("isToday", isToday(state.currentDate));
+  if (state.viewMode === "week") {
+    const [start, , , , end] = weekDatesFor(state.currentDate);
+    label.textContent =
+      start.getMonth() === end.getMonth()
+        ? `${MONTH_NAMES[start.getMonth()]} ${start.getDate()}-${end.getDate()}, ${end.getFullYear()}`
+        : `${MONTH_NAMES[start.getMonth()]} ${start.getDate()} - ${MONTH_NAMES[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`;
+    label.classList.toggle("isToday", weekDatesFor(state.currentDate).some(isToday));
+  } else {
+    label.textContent = formatDate(state.currentDate);
+    label.classList.toggle("isToday", isToday(state.currentDate));
+  }
 }
 
+// One day at a time in day view; a full Mon-Fri week at a time in week
+// view, so the arrows always mean "next/previous thing you're looking at".
 function changeDay(delta) {
+  const step = state.viewMode === "week" ? delta * 7 : delta;
   const d = new Date(state.currentDate);
-  d.setDate(d.getDate() + delta);
+  d.setDate(d.getDate() + step);
   state.currentDate = d;
   renderDayLabel();
   renderSections();
@@ -362,9 +393,25 @@ function goToToday() {
 // and jumping to tomorrow anyway.
 function updateTodayButtonLabel() {
   const btn = document.getElementById("todayBtn");
-  btn.textContent = defaultDate().getTime() === startOfDay(new Date()).getTime()
-    ? "Today"
-    : "Tomorrow";
+  const isToday = defaultDate().getTime() === startOfDay(new Date()).getTime();
+  btn.textContent = isToday ? "Jump to Today" : "Jump to Tomorrow";
+  btn.title = isToday
+    ? "Show today's menu"
+    : "Show tomorrow's menu - after 4pm, today's menu isn't useful anymore, so this jumps ahead";
+}
+
+function setViewMode(mode) {
+  if (state.viewMode === mode) return;
+  state.viewMode = mode;
+  saveViewMode();
+  updateViewModeButtons();
+  renderDayLabel();
+  renderSections();
+}
+
+function updateViewModeButtons() {
+  document.getElementById("dayViewBtn").setAttribute("aria-pressed", String(state.viewMode === "day"));
+  document.getElementById("weekViewBtn").setAttribute("aria-pressed", String(state.viewMode === "week"));
 }
 
 // Next (or same, if it already matches) date on/after `from` with the given
@@ -375,6 +422,19 @@ function nextOccurrence(from, weekday) {
   const diff = (weekday - d.getDay() + 7) % 7;
   d.setDate(d.getDate() + diff);
   return d;
+}
+
+// Monday-Friday of the week containing `date` (school menus never have
+// weekend data, so there's no point showing those two empty columns).
+function weekDatesFor(date) {
+  const mondayOffset = (date.getDay() + 6) % 7; // Mon=0 ... Sun=6
+  const monday = new Date(date);
+  monday.setDate(monday.getDate() - mondayOffset);
+  return Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
 }
 
 // ---------- Rendering menu sections ----------
@@ -506,42 +566,74 @@ async function renderSections() {
     sectionEls[id] = section.querySelector(".sectionBody");
   }
 
-  await Promise.all(
-    state.selectedIds.map((id) => renderOneMenu(id, sectionEls[id]))
-  );
+  const renderOne = state.viewMode === "week" ? renderOneMenuWeek : renderOneMenu;
+  await Promise.all(state.selectedIds.map((id) => renderOne(id, sectionEls[id])));
+
+  if (state.viewMode === "week") syncWeekScrolls();
 }
 
-async function renderOneMenu(menuId, bodyEl) {
-  if (!bodyEl) return;
-  const info = MENU_BY_ID[menuId];
-  const date = state.currentDate;
+// Every week row uses the same fixed-width day columns (see .weekDayCard),
+// so their scrollable widths always match - scrolling one can just copy
+// its scrollLeft onto the others to keep every menu on the same day.
+// Re-attached on every render since renderSections() replaces the DOM
+// nodes each time, so nothing to explicitly tear down.
+//
+// A touch fling fires many 'scroll' events per frame - writing
+// scrollLeft on every other row synchronously for each one caused
+// visible jank, so this batches it to at most once per animation frame
+// via requestAnimationFrame, always using whichever row moved most
+// recently as the source.
+function syncWeekScrolls() {
+  const scrollers = document.querySelectorAll(".weekScroll");
+  if (scrollers.length < 2) return;
+  let sourceEl = null;
+  let queued = false;
+  for (const el of scrollers) {
+    el.addEventListener(
+      "scroll",
+      () => {
+        sourceEl = el;
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(() => {
+          for (const other of scrollers) {
+            if (other !== sourceEl) other.scrollLeft = sourceEl.scrollLeft;
+          }
+          queued = false;
+        });
+      },
+      { passive: true }
+    );
+  }
+}
+
+// Computes the HTML for one menu on one date - shared by day view (one
+// call) and week view (one call per weekday column). Never touches the
+// DOM directly, so it works the same either way.
+async function computeDayHtml(info, date) {
   const weekday = date.getDay();
 
   if (info.dayFilter !== null && weekday !== info.dayFilter) {
     const next = nextOccurrence(date, info.dayFilter);
-    bodyEl.innerHTML = `<p class="notScheduled">Not scheduled today. Next: ${formatDate(next)}.</p>`;
-    return;
+    return `<p class="notScheduled">Not scheduled this day. Next: ${formatDate(next)}.</p>`;
   }
 
   let docId;
   try {
     docId = await fetchDocIdForDate(info.apiId, date);
   } catch (e) {
-    bodyEl.innerHTML = `<p class="error">Couldn't load this menu (${e.message}).</p>`;
-    return;
+    return `<p class="error">Couldn't load this menu (${e.message}).</p>`;
   }
 
   if (!docId) {
-    bodyEl.innerHTML = `<p class="empty">No menu published for ${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}.</p>`;
-    return;
+    return `<p class="empty">No menu published for ${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}.</p>`;
   }
 
   let items;
   try {
     items = await fetchMenuItems(docId);
   } catch (e) {
-    bodyEl.innerHTML = `<p class="error">Couldn't load items (${e.message}).</p>`;
-    return;
+    return `<p class="error">Couldn't load items (${e.message}).</p>`;
   }
 
   const dayItems = items.filter(
@@ -549,8 +641,7 @@ async function renderOneMenu(menuId, bodyEl) {
   );
 
   if (dayItems.length === 0) {
-    bodyEl.innerHTML = `<p class="empty">No items published for this day yet.</p>`;
-    return;
+    return `<p class="empty">No items published for this day yet.</p>`;
   }
 
   const grade = IDEA_CENTER_GRADE_BY_WEEKDAY[weekday];
@@ -615,11 +706,41 @@ async function renderOneMenu(menuId, bodyEl) {
 
   const commonSidesHtml = renderSideGroups(sortItemsForDay(commonSides));
 
-  bodyEl.innerHTML = `
+  return `
     ${gradeBadge ? `<div class="sectionMeta">${gradeBadge}</div>` : ""}
     ${choicesHtml}
     ${commonSidesHtml}
   `;
+}
+
+async function renderOneMenu(menuId, bodyEl) {
+  if (!bodyEl) return;
+  const info = MENU_BY_ID[menuId];
+  bodyEl.innerHTML = await computeDayHtml(info, state.currentDate);
+}
+
+async function renderOneMenuWeek(menuId, bodyEl) {
+  if (!bodyEl) return;
+  const info = MENU_BY_ID[menuId];
+  const dates = weekDatesFor(state.currentDate);
+  const dayHtmls = await Promise.all(dates.map((d) => computeDayHtml(info, d)));
+
+  const cardsHtml = dates
+    .map((d, i) => {
+      const cls = isToday(d) ? "weekDayCard today" : "weekDayCard";
+      return `
+        <div class="${cls}">
+          <div class="weekDayHeader">
+            <span class="weekDayWeekday">${WEEKDAY_NAMES[d.getDay()].slice(0, 3)}</span>
+            ${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getDate()}
+          </div>
+          ${dayHtmls[i]}
+        </div>
+      `;
+    })
+    .join("");
+
+  bodyEl.innerHTML = `<div class="weekScroll">${cardsHtml}</div>`;
 }
 
 function escapeHtml(s) {
@@ -744,6 +865,8 @@ document.getElementById("disclaimerScrim").addEventListener("click", closeDiscla
 document.getElementById("prevDay").addEventListener("click", () => changeDay(-1));
 document.getElementById("nextDay").addEventListener("click", () => changeDay(1));
 document.getElementById("todayBtn").addEventListener("click", goToToday);
+document.getElementById("dayViewBtn").addEventListener("click", () => setViewMode("day"));
+document.getElementById("weekViewBtn").addEventListener("click", () => setViewMode("week"));
 
 buildPicker();
 updatePickerCount();
@@ -751,4 +874,5 @@ buildExcludePicker();
 updateExcludeCount();
 renderDayLabel();
 updateTodayButtonLabel();
+updateViewModeButtons();
 renderSections();
