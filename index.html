@@ -9,9 +9,14 @@
 <body>
   <header class="topbar">
     <h1>Lindbergh School Menus</h1>
-    <button id="pickerToggle" class="pickerToggle" aria-expanded="false" aria-controls="picker">
-      Menus <span id="pickerCount" class="badge"></span>
-    </button>
+    <div class="topbarButtons">
+      <button id="excludeToggle" class="pickerToggle" aria-expanded="false" aria-controls="excludePicker">
+        Avoid <span id="excludeCount" class="badge"></span>
+      </button>
+      <button id="pickerToggle" class="pickerToggle" aria-expanded="false" aria-controls="picker">
+        Menus <span id="pickerCount" class="badge"></span>
+      </button>
+    </div>
   </header>
 
   <aside id="picker" class="picker" hidden>
@@ -25,6 +30,18 @@
     </div>
   </aside>
   <div id="pickerScrim" class="pickerScrim" hidden></div>
+
+  <aside id="excludePicker" class="picker" hidden>
+    <div class="pickerHeader">
+      <h2>Exclude allergens</h2>
+      <button id="excludePickerClose" class="iconBtn" aria-label="Close">&times;</button>
+    </div>
+    <div id="excludePickerBody" class="pickerBody"></div>
+    <div class="pickerFooter">
+      <button id="excludePickerDone" class="primaryBtn">Done</button>
+    </div>
+  </aside>
+  <div id="excludePickerScrim" class="pickerScrim" hidden></div>
 
   <nav class="dayNav">
     <button id="prevDay" class="iconBtn" aria-label="Previous day">&larr;</button>

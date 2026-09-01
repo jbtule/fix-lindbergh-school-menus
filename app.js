@@ -2,6 +2,7 @@
 // See config.js for the menu-type ids and how they were discovered.
 
 const STORAGE_KEY = "lsm.selectedMenus";
+const EXCLUDE_STORAGE_KEY = "lsm.excludedAllergens";
 
 // After 4pm, school's out and the day's menu is no longer useful - default
 // ahead to tomorrow instead.
@@ -9,6 +10,7 @@ const END_OF_DAY_HOUR = 16;
 
 const state = {
   selectedIds: loadSelectedIds(),
+  excludedAllergens: loadExcludedAllergens(),
   currentDate: defaultDate(),
 };
 
@@ -66,6 +68,25 @@ function saveSelectedIds() {
   } catch (e) {
     // localStorage unavailable (private browsing etc.) - selection just
     // won't persist across visits, which is fine as a fallback.
+  }
+}
+
+function loadExcludedAllergens() {
+  try {
+    const raw = localStorage.getItem(EXCLUDE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveExcludedAllergens() {
+  try {
+    localStorage.setItem(EXCLUDE_STORAGE_KEY, JSON.stringify(state.excludedAllergens));
+  } catch (e) {
+    /* ignore - see saveSelectedIds */
   }
 }
 
@@ -228,16 +249,64 @@ function updatePickerCount() {
     : "";
 }
 
+function setPanelOpen(panelId, scrimId, toggleId, open) {
+  document.getElementById(panelId).hidden = !open;
+  document.getElementById(scrimId).hidden = !open;
+  document.getElementById(toggleId).setAttribute("aria-expanded", String(open));
+}
+
 function openPicker() {
-  document.getElementById("picker").hidden = false;
-  document.getElementById("pickerScrim").hidden = false;
-  document.getElementById("pickerToggle").setAttribute("aria-expanded", "true");
+  setPanelOpen("picker", "pickerScrim", "pickerToggle", true);
 }
 
 function closePicker() {
-  document.getElementById("picker").hidden = true;
-  document.getElementById("pickerScrim").hidden = true;
-  document.getElementById("pickerToggle").setAttribute("aria-expanded", "false");
+  setPanelOpen("picker", "pickerScrim", "pickerToggle", false);
+}
+
+// ---------- Exclude (allergen) picker UI ----------
+
+function buildExcludePicker() {
+  const body = document.getElementById("excludePickerBody");
+  body.innerHTML = "";
+  const list = document.createElement("div");
+  list.className = "pickerMenuList";
+  for (const { field, label, icon } of EXCLUDE_OPTIONS) {
+    const optLabel = document.createElement("label");
+    optLabel.className = "pickerCheckbox";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.value = field;
+    cb.checked = state.excludedAllergens.includes(field);
+    cb.addEventListener("change", () => {
+      if (cb.checked) {
+        if (!state.excludedAllergens.includes(field)) state.excludedAllergens.push(field);
+      } else {
+        state.excludedAllergens = state.excludedAllergens.filter((x) => x !== field);
+      }
+      saveExcludedAllergens();
+      updateExcludeCount();
+      renderSections();
+    });
+    optLabel.appendChild(cb);
+    optLabel.appendChild(document.createTextNode(` ${icon} ${label}`));
+    list.appendChild(optLabel);
+  }
+  body.appendChild(list);
+}
+
+function updateExcludeCount() {
+  const badge = document.getElementById("excludeCount");
+  badge.textContent = state.excludedAllergens.length
+    ? String(state.excludedAllergens.length)
+    : "";
+}
+
+function openExcludePicker() {
+  setPanelOpen("excludePicker", "excludePickerScrim", "excludeToggle", true);
+}
+
+function closeExcludePicker() {
+  setPanelOpen("excludePicker", "excludePickerScrim", "excludeToggle", false);
 }
 
 // ---------- Day nav ----------
@@ -485,23 +554,54 @@ function isAllergenFlagged(v) {
   return v === true || v === "1" || v === 1;
 }
 
+// "meat" isn't a real API field - a product counts as meat when it isn't
+// flagged vegetarian.
+function isMeat(product) {
+  return !isAllergenFlagged(product.allergen_vegetarian);
+}
+
+// allergen_dairy and allergen_milk are separate API fields sharing one
+// badge (see ALLERGEN_DEFS), but in every menu checked so far allergen_dairy
+// is always "0" - allergen_milk is the one that actually carries the flag.
+// Rather than assume that never changes, excluding "Milk" checks both.
+const ALLERGEN_FIELD_ALIASES = {
+  allergen_dairy: "allergen_milk",
+  allergen_milk: "allergen_dairy",
+};
+
+function isFieldExcluded(field) {
+  return (
+    state.excludedAllergens.includes(field) ||
+    state.excludedAllergens.includes(ALLERGEN_FIELD_ALIASES[field])
+  );
+}
+
 // Badges for one product's flagged allergens, deduped so dairy+milk (same
 // emoji) merge into one badge instead of showing the same icon twice.
 // "Positive" entries (vegetarian - not a warning) are kept separate from
 // the actual allergens rather than lumped into an "Allergens" grouping.
+// Also figures out whether the item should be struck through (matches
+// something in state.excludedAllergens) and whether the Allergens box
+// itself should turn red (specifically an excluded *allergen* - "meat"
+// alone doesn't turn the box red, since it isn't shown in it).
 function allergenBadgesHtml(product) {
   const byIcon = new Map(); // icon (or "" for text-only) -> labels[]
   const positive = []; // [{ icon, label }]
+  let hasExcludedAllergen = false;
   for (const def of ALLERGEN_DEFS) {
     if (!isAllergenFlagged(product[def.field])) continue;
     if (def.positive) {
       positive.push(def);
       continue;
     }
+    if (isFieldExcluded(def.field)) hasExcludedAllergen = true;
     const icon = def.textOnly ? "" : def.icon;
     if (!byIcon.has(icon)) byIcon.set(icon, []);
     byIcon.get(icon).push(def.label);
   }
+
+  const isExcluded =
+    hasExcludedAllergen || (state.excludedAllergens.includes("meat") && isMeat(product));
 
   // Positive badges (vegetarian) stay inline right after the item name.
   // The Allergens box, if any, is a block of its own on the line below -
@@ -511,14 +611,16 @@ function allergenBadgesHtml(product) {
     .join("");
   return {
     positiveHtml,
-    warningHtml: renderAllergenWarnings(byIcon),
+    warningHtml: renderAllergenWarnings(byIcon, hasExcludedAllergen),
+    isExcluded,
   };
 }
 
 // Always shown in a labeled "Allergens" box - ALLERGEN_SHOW_LABELS only
 // decides what's inside it: readable text+icon chips, or (default)
-// icon-only badges with the name on hover/long-press.
-function renderAllergenWarnings(byIcon) {
+// icon-only badges with the name on hover/long-press. `isAlert` turns the
+// box red instead of amber, when one of the shown allergens is excluded.
+function renderAllergenWarnings(byIcon, isAlert) {
   if (byIcon.size === 0) return "";
   const chips = [...byIcon.entries()]
     .map(([icon, labels]) => {
@@ -531,8 +633,9 @@ function renderAllergenWarnings(byIcon) {
         : `<span class="allergenBadge allergenBadge-text" title="${label}">${label}</span>`;
     })
     .join("");
+  const groupCls = isAlert ? "allergenGroup allergenGroup-alert" : "allergenGroup";
   return `
-    <span class="allergenGroup">
+    <span class="${groupCls}">
       <span class="allergenGroupLabel">Allergens</span>
       <span class="allergenRow">${chips}</span>
     </span>
@@ -540,8 +643,9 @@ function renderAllergenWarnings(byIcon) {
 }
 
 function renderItemLine(it) {
-  const { positiveHtml, warningHtml } = allergenBadgesHtml(it.product);
-  return `<span class="itemName">${escapeHtml(it.product.name)}</span>${positiveHtml}${warningHtml}`;
+  const { positiveHtml, warningHtml, isExcluded } = allergenBadgesHtml(it.product);
+  const nameCls = isExcluded ? "itemName itemName-excluded" : "itemName";
+  return `<span class="${nameCls}">${escapeHtml(it.product.name)}</span>${positiveHtml}${warningHtml}`;
 }
 
 // ---------- Wire up ----------
@@ -550,12 +654,18 @@ document.getElementById("pickerToggle").addEventListener("click", openPicker);
 document.getElementById("pickerClose").addEventListener("click", closePicker);
 document.getElementById("pickerDone").addEventListener("click", closePicker);
 document.getElementById("pickerScrim").addEventListener("click", closePicker);
+document.getElementById("excludeToggle").addEventListener("click", openExcludePicker);
+document.getElementById("excludePickerClose").addEventListener("click", closeExcludePicker);
+document.getElementById("excludePickerDone").addEventListener("click", closeExcludePicker);
+document.getElementById("excludePickerScrim").addEventListener("click", closeExcludePicker);
 document.getElementById("prevDay").addEventListener("click", () => changeDay(-1));
 document.getElementById("nextDay").addEventListener("click", () => changeDay(1));
 document.getElementById("todayBtn").addEventListener("click", goToToday);
 
 buildPicker();
 updatePickerCount();
+buildExcludePicker();
+updateExcludeCount();
 renderDayLabel();
 updateTodayButtonLabel();
 renderSections();

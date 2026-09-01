@@ -12,6 +12,9 @@
   --warn-border: #c99a00;
   --warn-bg: #fffbeb;
   --warn-label: #8a6d00;
+  --danger-border: #c0392b;
+  --danger-bg: #fdecea;
+  --danger-label: #a5291b;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -28,6 +31,9 @@
     --warn-border: #ab8400;
     --warn-bg: #2a2410;
     --warn-label: #e0c02e;
+    --danger-border: #e0554a;
+    --danger-bg: #341715;
+    --danger-label: #ff8a80;
   }
 }
 
@@ -58,6 +64,11 @@ body {
 .topbar h1 {
   font-size: 1.1rem;
   margin: 0;
+}
+
+.topbarButtons {
+  display: flex;
+  gap: 0.5rem;
 }
 
 .pickerToggle {
@@ -276,6 +287,12 @@ main {
   font-weight: inherit;
 }
 
+.itemName-excluded {
+  text-decoration: line-through;
+  text-decoration-color: var(--fg);
+  text-decoration-thickness: 2px;
+}
+
 .allergenBadge {
   font-size: 0.85em;
   line-height: 1;
@@ -327,6 +344,16 @@ main {
   letter-spacing: 0.04em;
   color: var(--warn-label);
   white-space: nowrap;
+}
+
+/* One of the shown allergens is on the exclude list - red instead of amber. */
+.allergenGroup-alert {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+.allergenGroup-alert .allergenGroupLabel {
+  color: var(--danger-label);
 }
 
 .allergenRow {

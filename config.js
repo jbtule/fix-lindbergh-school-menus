@@ -213,3 +213,25 @@ const ALLERGEN_DEFS = [
   { field: "allergen_other", label: "Other", icon: "⚠️" },
   { field: "allergen_vegetarian", label: "Vegetarian", icon: "🥦", positive: true },
 ];
+
+// Options for the "exclude" picker: the same 8 allergens the district's
+// own site offers (peanut, tree nut, milk, fish, shellfish, egg, wheat,
+// soy, sesame - notably not the full ALLERGEN_DEFS list: no dairy/gluten/
+// pork/other), plus a synthetic "meat" entry, which isn't a field the API
+// sends - it's derived as "not flagged allergen_vegetarian" (see isMeat()
+// in app.js).
+const EXCLUDE_FIELDS = [
+  "allergen_peanut",
+  "allergen_treenuts",
+  "allergen_milk",
+  "allergen_fish",
+  "allergen_shellfish",
+  "allergen_egg",
+  "allergen_wheat",
+  "allergen_soy",
+  "allergen_sesame",
+];
+const EXCLUDE_OPTIONS = [
+  ...EXCLUDE_FIELDS.map((field) => ALLERGEN_DEFS.find((d) => d.field === field)),
+  { field: "meat", label: "Meat", icon: "🥩" },
+];
