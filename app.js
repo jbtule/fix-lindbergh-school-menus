@@ -1,5 +1,7 @@
 // Lindbergh School Menus - static front end for the district's menu API.
 // See config.js for the menu-type ids and how they were discovered.
+// APP_VERSION comes from version.js (loaded before this file) - see
+// checkForUpdate() below and hooks/pre-commit.
 
 const STORAGE_KEY = "lsm.selectedMenus";
 const EXCLUDE_STORAGE_KEY = "lsm.excludedAllergens";
@@ -920,3 +922,23 @@ setInterval(() => {
   updateTodayButtonLabel();
   renderDayLabel();
 }, 60000);
+
+// Reloads the page when a newer version has been deployed. No service
+// worker needed: hooks/pre-commit writes a fresh APP_VERSION to
+// version.js on every commit, so re-fetching index.html fresh (bypassing
+// the browser's own cache - see the disclaimer for why that cache
+// exists) and reading back version.js's current ?v= hash is enough to
+// tell. Matters most for a home-screen icon, which has no reload button
+// or address bar of its own. This is a purely informational site with
+// nothing to lose mid-session, so reloading silently rather than
+// prompting first is fine.
+function checkForUpdate() {
+  fetch("index.html", { cache: "no-store" })
+    .then((res) => res.text())
+    .then((html) => {
+      const match = html.match(/version\.js\?v=([a-f0-9]+)/);
+      if (match && match[1] !== APP_VERSION) location.reload();
+    })
+    .catch(() => {}); // offline, or a blip - just try again next interval
+}
+setInterval(checkForUpdate, 5 * 60000);
