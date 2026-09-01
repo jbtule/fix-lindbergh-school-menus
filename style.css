@@ -1,0 +1,325 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #6b6b6b;
+  --border: #dcdcdc;
+  --accent: #2f6f4f;
+  --accent-fg: #ffffff;
+  --card-bg: #f7f7f5;
+  --today-bg: #fff7d6;
+  --today-border: #d9b400;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a;
+    --fg: #eaeaea;
+    --muted: #9a9a9a;
+    --border: #33363c;
+    --accent: #4fa878;
+    --accent-fg: #0c0c0c;
+    --card-bg: #1e2126;
+    --today-bg: #3a3316;
+    --today-border: #c9a400;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+  padding-bottom: 3rem;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+
+.topbar h1 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.pickerToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--fg);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.badge {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  font-size: 0.8rem;
+  min-width: 1.2em;
+  text-align: center;
+}
+
+.pickerScrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 20;
+}
+
+.picker {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, 90vw);
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Author CSS always beats the browser's built-in [hidden] styling, so
+   `.picker { display: flex }` above was overriding closePicker()'s
+   `picker.hidden = true` and leaving the panel visible no matter what. */
+.picker[hidden] {
+  display: none;
+}
+
+.pickerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.pickerHeader h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.iconBtn {
+  background: none;
+  border: none;
+  color: var(--fg);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+}
+
+.pickerBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 1rem;
+}
+
+.pickerGroup h3 {
+  margin: 1rem 0 0.25rem;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.pickerSchool h4 {
+  margin: 0.6rem 0 0.2rem;
+  font-size: 1rem;
+}
+
+.pickerSchool h5 {
+  margin: 0.5rem 0 0.15rem 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.pickerMenuList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-left: 0.25rem;
+}
+
+.pickerCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+  cursor: pointer;
+}
+
+.pickerFooter {
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.primaryBtn {
+  width: 100%;
+  padding: 0.7rem;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.dayNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  flex-wrap: wrap;
+}
+
+.dayLabel {
+  font-size: 1.1rem;
+  font-weight: 600;
+  min-width: 18ch;
+  text-align: center;
+}
+
+.dayLabel.isToday {
+  color: var(--accent);
+}
+
+.linkBtn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--fg);
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.emptyState {
+  max-width: 40ch;
+  margin: 3rem auto;
+  text-align: center;
+  color: var(--muted);
+  padding: 0 1rem;
+}
+
+.menuSection {
+  margin-bottom: 2.5rem;
+}
+
+.menuSection h2 {
+  font-size: 1.15rem;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.loading, .empty, .error, .notScheduled {
+  color: var(--muted);
+}
+
+.error { color: #c0392b; }
+
+.sectionBody {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+}
+
+.sectionMeta {
+  margin-bottom: 0.5rem;
+}
+
+.gradeBadge {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.choiceGroup {
+  border: 1.5px solid var(--accent);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.choiceLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  margin-bottom: 0.3rem;
+}
+
+.choiceList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.choiceList li {
+  margin-bottom: 0.15rem;
+}
+
+.choiceList li:not(:last-child)::after {
+  content: " — or —";
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0.15rem 0;
+}
+
+.sideGroup {
+  margin: 0.4rem 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.sideLabel {
+  font-weight: 600;
+}
+
+.sideList {
+  margin: 0.1rem 0 0;
+  padding-left: 1.1rem;
+}
+
+@media (max-width: 480px) {
+  .topbar h1 { font-size: 1rem; }
+  .dayLabel { font-size: 1rem; min-width: 0; }
+}

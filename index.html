@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lindbergh School Menus</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Lindbergh School Menus</h1>
+    <button id="pickerToggle" class="pickerToggle" aria-expanded="false" aria-controls="picker">
+      Menus <span id="pickerCount" class="badge"></span>
+    </button>
+  </header>
+
+  <aside id="picker" class="picker" hidden>
+    <div class="pickerHeader">
+      <h2>Choose menus</h2>
+      <button id="pickerClose" class="iconBtn" aria-label="Close">&times;</button>
+    </div>
+    <div id="pickerBody" class="pickerBody"></div>
+    <div class="pickerFooter">
+      <button id="pickerDone" class="primaryBtn">Done</button>
+    </div>
+  </aside>
+  <div id="pickerScrim" class="pickerScrim" hidden></div>
+
+  <nav class="dayNav">
+    <button id="prevDay" class="iconBtn" aria-label="Previous day">&larr;</button>
+    <div id="dayLabel" class="dayLabel"></div>
+    <button id="nextDay" class="iconBtn" aria-label="Next day">&rarr;</button>
+    <button id="todayBtn" class="linkBtn">Today</button>
+  </nav>
+
+  <main id="sections"></main>
+
+  <p id="emptyState" class="emptyState" hidden>
+    No menus selected yet. Tap <strong>Menus</strong> above to choose which schools and meals to show.
+  </p>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
