@@ -328,7 +328,7 @@ function buildExcludePicker() {
   body.innerHTML = "";
   const list = document.createElement("div");
   list.className = "pickerMenuList";
-  for (const { field, label, icon } of EXCLUDE_OPTIONS) {
+  for (const { field, label, icon, excluding } of EXCLUDE_OPTIONS) {
     const optLabel = document.createElement("label");
     optLabel.className = "pickerCheckbox";
     const cb = document.createElement("input");
@@ -346,7 +346,7 @@ function buildExcludePicker() {
       renderSections();
     });
     optLabel.appendChild(cb);
-    optLabel.appendChild(document.createTextNode(` ${icon} ${label}`));
+    optLabel.appendChild(document.createTextNode(` ${excluding ? "🚫 " : ""}${icon} ${label}`));
     list.appendChild(optLabel);
   }
   body.appendChild(list);
@@ -846,6 +846,15 @@ function isMeat(product) {
   return !isAllergenFlagged(product.allergen_vegetarian);
 }
 
+// See VEGAN_BADGE/VEGAN_DISQUALIFYING_FIELDS in config.js for what this
+// does and doesn't account for.
+function isVegan(product) {
+  return (
+    isAllergenFlagged(product.allergen_vegetarian) &&
+    !VEGAN_DISQUALIFYING_FIELDS.some((f) => isAllergenFlagged(product[f]))
+  );
+}
+
 // allergen_dairy and allergen_milk are separate API fields sharing one
 // badge (see ALLERGEN_DEFS), but in every menu checked so far allergen_dairy
 // is always "0" - allergen_milk is the one that actually carries the flag.
@@ -877,7 +886,9 @@ function allergenBadgesHtml(product) {
   for (const def of ALLERGEN_DEFS) {
     if (!isAllergenFlagged(product[def.field])) continue;
     if (def.positive) {
-      positive.push(def);
+      // Vegan is a stronger, more specific claim than vegetarian - show
+      // just that badge instead of both when it applies.
+      positive.push(def.field === "allergen_vegetarian" && isVegan(product) ? VEGAN_BADGE : def);
       continue;
     }
     if (isFieldExcluded(def.field)) hasExcludedAllergen = true;
@@ -887,7 +898,9 @@ function allergenBadgesHtml(product) {
   }
 
   const isExcluded =
-    hasExcludedAllergen || (state.excludedAllergens.includes("meat") && isMeat(product));
+    hasExcludedAllergen ||
+    (state.excludedAllergens.includes("vegetarian") && isMeat(product)) ||
+    (state.excludedAllergens.includes("vegan") && !isVegan(product));
 
   // Positive badges (vegetarian) stay inline right after the item name.
   // The Allergens box, if any, is a block of its own on the line below -
@@ -956,7 +969,7 @@ document.getElementById("weekViewBtn").addEventListener("click", () => setViewMo
 
 // Drops any stored selections/exclusions that no longer exist in the
 // current config - e.g. left over in localStorage from testing an older
-// version of this site. Otherwise they'd inflate the "Menus"/"Avoid"
+// version of this site. Otherwise they'd inflate the "Menus"/"Dietary"
 // badge counts forever without ever showing up as a checked box or a
 // rendered section (both already silently skip unknown ids) - exactly
 // the "count is 1 higher than what's actually selected" bug this fixes.
@@ -1006,6 +1019,10 @@ document.addEventListener("click", (e) => {
   openTooltip = bubble;
   tooltipTimer = setTimeout(closeTooltip, 4000);
 });
+// The bubble is position: fixed (anchored to a spot on screen), so it'd
+// otherwise stay put while the badge that opened it scrolls away
+// underneath it - just close it instead of trying to track position.
+window.addEventListener("scroll", closeTooltip, { passive: true, capture: true });
 
 // Collapsing a category (Milk, Condiments, etc. - never the Entree box)
 // is one global setting applied identically everywhere, not per-section,

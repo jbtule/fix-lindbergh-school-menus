@@ -251,15 +251,27 @@ const ALLERGEN_DEFS = [
   { field: "allergen_pork", label: "Pork", icon: "🐖" },
   { field: "allergen_sesame", label: "Sesame", icon: "🫘" },
   { field: "allergen_other", label: "Other", icon: "⚠️" },
-  { field: "allergen_vegetarian", label: "Vegetarian", icon: "🥦", positive: true },
+  { field: "allergen_vegetarian", label: "Vegetarian", icon: "🥗", positive: true },
 ];
 
-// Options for the "exclude" picker: the same 8 allergens the district's
+// Vegan isn't a real API field - derived as vegetarian with none of the
+// known animal-product flags set (dairy, milk, egg). Doesn't factor in
+// allergen_other (too ambiguous to safely include or exclude either way).
+// When an item qualifies, it shows only this badge instead of also
+// showing "Vegetarian" - vegan already implies it. See isVegan() in
+// app.js.
+const VEGAN_BADGE = { label: "Vegan", icon: "🌿" };
+const VEGAN_DISQUALIFYING_FIELDS = ["allergen_dairy", "allergen_milk", "allergen_egg"];
+
+// Options for the "Dietary" picker: the same 8 allergens the district's
 // own site offers (peanut, tree nut, milk, fish, shellfish, egg, wheat,
 // soy, sesame - notably not the full ALLERGEN_DEFS list: no dairy/gluten/
-// pork/other), plus a synthetic "meat" entry, which isn't a field the API
-// sends - it's derived as "not flagged allergen_vegetarian" (see isMeat()
-// in app.js).
+// pork/other) - relabeled "No X" here specifically, plus two synthetic
+// entries that aren't API fields: "vegetarian" (not flagged
+// allergen_vegetarian - see isMeat() in app.js) and "vegan" (see
+// isVegan() above/in app.js). Checking either strikes through anything
+// that *doesn't* match - the opposite direction from the allergen
+// entries, which strike through anything that *does*.
 const EXCLUDE_FIELDS = [
   "allergen_peanut",
   "allergen_treenuts",
@@ -272,6 +284,14 @@ const EXCLUDE_FIELDS = [
   "allergen_sesame",
 ];
 const EXCLUDE_OPTIONS = [
-  ...EXCLUDE_FIELDS.map((field) => ALLERGEN_DEFS.find((d) => d.field === field)),
-  { field: "meat", label: "Meat", icon: "🥩" },
+  // `excluding: true` marks the ones that strike through items that
+  // *have* the trait (get a 🚫 in the picker - see buildExcludePicker()
+  // in app.js). Vegetarian/vegan are the opposite direction - they
+  // strike through items that *don't* match - so they're left off.
+  ...EXCLUDE_FIELDS.map((field) => {
+    const def = ALLERGEN_DEFS.find((d) => d.field === field);
+    return { ...def, label: `No ${def.label}`, excluding: true };
+  }),
+  { field: "vegetarian", label: "Vegetarian", icon: "🥗" },
+  { field: "vegan", label: "Vegan", icon: "🌿" },
 ];
