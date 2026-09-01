@@ -941,4 +941,13 @@ function checkForUpdate() {
     })
     .catch(() => {}); // offline, or a blip - just try again next interval
 }
+// The realistic usage pattern here is "open the home-screen icon, glance
+// at it, close it" - almost always well under 5 minutes, so a periodic
+// timer alone would rarely get a chance to fire. Checking immediately on
+// load, and again every time the page comes back to the foreground,
+// covers that; the interval is just a fallback for a tab left open long.
+checkForUpdate();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") checkForUpdate();
+});
 setInterval(checkForUpdate, 5 * 60000);
