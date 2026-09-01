@@ -407,8 +407,17 @@ function setViewMode(mode) {
   state.viewMode = mode;
   saveViewMode();
   updateViewModeButtons();
+  updateBodyViewModeClass();
   renderDayLabel();
   renderSections();
+}
+
+// Lets CSS give day view's menu sections a fixed width (so they can sit
+// side by side on a wide screen - see .menuSection) without also
+// shrinking week view's rows, which need the full width for their
+// horizontal day-scroller.
+function updateBodyViewModeClass() {
+  document.body.classList.toggle("week-view", state.viewMode === "week");
 }
 
 function updateViewModeButtons() {
@@ -910,6 +919,7 @@ updateExcludeCount();
 renderDayLabel();
 updateTodayButtonLabel();
 updateViewModeButtons();
+updateBodyViewModeClass();
 renderSections();
 
 // Both of these are only computed at click/render time, so a tab left

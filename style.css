@@ -366,6 +366,10 @@ main {
   max-width: 1100px;
   margin: 0 auto;
   padding: 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
 }
 
 .emptyState {
@@ -392,7 +396,19 @@ main {
 
 
 .menuSection {
-  margin-bottom: 2.5rem;
+  margin-bottom: 0;
+  width: 100%;
+}
+
+/* Day view: a fixed-ish width per menu so several can sit side by side
+   on a wide screen instead of always stacking full-width. Week view
+   keeps every row full width (see main's flex-wrap) - its horizontal
+   day-scroller needs the room, and cramming it into a narrow column
+   would defeat the point. */
+body:not(.week-view) .menuSection {
+  flex: 1 1 340px;
+  max-width: 480px;
+  width: auto;
 }
 
 .menuSection h2 {
