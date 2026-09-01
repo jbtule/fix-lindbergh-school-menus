@@ -42,8 +42,7 @@ could stop working at any time.
   auto-reloads itself when a new version is deployed
 - Optional Google Translate widget, matching the language list seen on
   the district's own site - a one-line flip (`TRANSLATE_WIDGET_ENABLED`
-  in `app.js`) to remove entirely, added on request but not otherwise
-  needed
+  in `app.js`) to remove entirely
 
 ## How it works
 
