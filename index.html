@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Unofficial Menus" />
   <meta name="theme-color" content="#2f6f4f" />
-  <link rel="stylesheet" href="style.css?v=6b12266a" />
+  <link rel="stylesheet" href="style.css?v=5337f34f" />
 </head>
 <body>
   <header class="topbar">
@@ -22,6 +22,11 @@
       <button id="disclaimerToggle" class="disclaimerLink">disclaimer</button>
     </h1>
     <div class="topbarButtons">
+      <!-- Hidden at startup unless TRANSLATE_WIDGET_ENABLED (app.js) is
+           true - see loadTranslateWidget(). -->
+      <button id="languageToggle" class="pickerToggle" aria-expanded="false" aria-controls="languagePicker" title="Language" aria-label="Language" hidden>
+        🌐
+      </button>
       <button id="excludeToggle" class="pickerToggle" aria-expanded="false" aria-controls="excludePicker">
         Dietary <span id="excludeCount" class="badge"></span>
       </button>
@@ -42,6 +47,20 @@
     </div>
   </aside>
   <div id="pickerScrim" class="pickerScrim" hidden></div>
+
+  <aside id="languagePicker" class="picker" hidden>
+    <div class="pickerHeader">
+      <h2>Language</h2>
+      <button id="languagePickerClose" class="iconBtn" aria-label="Close">&times;</button>
+    </div>
+    <div class="pickerBody">
+      <div id="google_translate_element"></div>
+    </div>
+    <div class="pickerFooter">
+      <button id="languagePickerDone" class="primaryBtn">Done</button>
+    </div>
+  </aside>
+  <div id="languagePickerScrim" class="pickerScrim" hidden></div>
 
   <aside id="excludePicker" class="picker" hidden>
     <div class="pickerHeader">
@@ -98,8 +117,8 @@
     </a>
   </footer>
 
-  <script src="version.js?v=c482ba8c"></script>
+  <script src="version.js?v=1fb9e1d0"></script>
   <script src="config.js?v=d42169e2"></script>
-  <script src="app.js?v=6835b19d"></script>
+  <script src="app.js?v=ad15a98b"></script>
 </body>
 </html>

@@ -100,7 +100,14 @@ body {
 
 .topbarButtons {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
+}
+
+/* Lives inside #languagePicker's pickerBody - the widget fills itself in
+   once loaded (see loadTranslateWidget() in app.js). */
+#google_translate_element {
+  font-size: 0.95rem;
 }
 
 .pickerToggle {

@@ -372,6 +372,14 @@ function closeExcludePicker() {
   setPanelOpen("excludePicker", "excludePickerScrim", "excludeToggle", false);
 }
 
+function openLanguagePicker() {
+  setPanelOpen("languagePicker", "languagePickerScrim", "languageToggle", true);
+}
+
+function closeLanguagePicker() {
+  setPanelOpen("languagePicker", "languagePickerScrim", "languageToggle", false);
+}
+
 // ---------- Disclaimer ----------
 
 function openDisclaimer() {
@@ -548,6 +556,40 @@ function isHiddenFromWebView(product) {
 // show icon + label text in a bordered "Allergens" box, no hover needed -
 // better for touch devices that can't hover, noisier for everything else.
 const ALLERGEN_SHOW_LABELS = false;
+
+// The district's own site offers Google's Website Translator widget (a
+// free, no-API-key, no-account third-party widget - unlike the paid
+// Google Cloud Translation API) for both its own UI text and the actual
+// (dynamic, unbounded, can't be hand-translated) menu item names. Added
+// on request, but genuinely optional - nobody had actually asked for
+// non-English support yet at the time. Flip to false to fully remove it:
+// when disabled, nothing is fetched from Google at all, not just hidden.
+const TRANSLATE_WIDGET_ENABLED = true;
+
+// Dynamically injects Google's script only when enabled, rather than a
+// static <script> tag in index.html, so disabling this really means zero
+// network requests to Google - not just an empty/hidden widget.
+// Matches the language list the district's own site offers (seen live -
+// they must feed this into includedLanguages from a per-district setting
+// somewhere, since it isn't in their bundled JS as a fixed list),
+// presumably tailored to their families' actual home languages rather
+// than Google's full ~100-language default.
+const TRANSLATE_LANGUAGES = "en,es,fr,hy,zh-CN,ko,pt,ru,vi";
+
+function loadTranslateWidget() {
+  if (!TRANSLATE_WIDGET_ENABLED) return;
+  document.getElementById("languageToggle").hidden = false;
+  window.googleTranslateElementInit = function () {
+    new google.translate.TranslateElement(
+      { pageLanguage: "en", includedLanguages: TRANSLATE_LANGUAGES },
+      "google_translate_element"
+    );
+  };
+  const script = document.createElement("script");
+  script.src = "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+  script.async = true;
+  document.head.appendChild(script);
+}
 
 const CATEGORY_ORDER = ["Entrees", "Vegetable", "Fruit", "Milk", "Condiment"];
 
@@ -1005,6 +1047,10 @@ document.getElementById("excludeToggle").addEventListener("click", openExcludePi
 document.getElementById("excludePickerClose").addEventListener("click", closeExcludePicker);
 document.getElementById("excludePickerDone").addEventListener("click", closeExcludePicker);
 document.getElementById("excludePickerScrim").addEventListener("click", closeExcludePicker);
+document.getElementById("languageToggle").addEventListener("click", openLanguagePicker);
+document.getElementById("languagePickerClose").addEventListener("click", closeLanguagePicker);
+document.getElementById("languagePickerDone").addEventListener("click", closeLanguagePicker);
+document.getElementById("languagePickerScrim").addEventListener("click", closeLanguagePicker);
 document.getElementById("disclaimerToggle").addEventListener("click", openDisclaimer);
 document.getElementById("disclaimerClose").addEventListener("click", closeDisclaimer);
 document.getElementById("disclaimerDone").addEventListener("click", closeDisclaimer);
@@ -1099,6 +1145,7 @@ updateTodayButtonLabel();
 updateViewModeButtons();
 updateBodyViewModeClass();
 renderSections();
+loadTranslateWidget();
 
 // Both of these are only computed at click/render time, so a tab left
 // open across the 4pm cutoff (or midnight) would otherwise show a stale
