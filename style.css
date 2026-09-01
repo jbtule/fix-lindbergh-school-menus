@@ -591,14 +591,54 @@ body:not(.week-view) .menuSection {
   margin: 0.15rem 0;
 }
 
+/* Holds every category's .sideGroup for one day's sides. flex-wrap lets
+   collapsed groups (shrunk to a small pill - see .sideGroup.collapsed)
+   sit side by side instead of always stacking one per row. */
+.sideGroups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.6rem;
+}
+
 .sideGroup {
-  margin: 0.4rem 0;
   font-size: 0.85rem;
+  flex: 1 1 100%; /* expanded: full width, one per row - unchanged look */
+}
+
+.sideGroup.collapsed {
+  flex: 0 0 auto; /* collapsed: shrink to content so it can sit inline */
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem 0.15rem 0.7rem;
+}
+
+.sideGroup.collapsed .sideList {
+  display: none;
 }
 
 .sideLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
   font-weight: 600;
   color: var(--muted);
+  cursor: pointer;
+}
+
+/* Small disclosure arrow - rotates to point right when collapsed. */
+.sideLabel::after {
+  content: "\25BE";
+  font-size: 0.7em;
+  transition: transform 0.15s ease;
+}
+
+.sideGroup.collapsed .sideLabel::after {
+  transform: rotate(-90deg);
 }
 
 .sideList {

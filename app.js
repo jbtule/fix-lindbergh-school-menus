@@ -6,16 +6,28 @@
 const STORAGE_KEY = "lsm.selectedMenus";
 const EXCLUDE_STORAGE_KEY = "lsm.excludedAllergens";
 const VIEW_MODE_STORAGE_KEY = "lsm.viewMode";
+const COLLAPSED_STORAGE_KEY = "lsm.collapsedCategories";
 
 // After 4pm, school's out and the day's menu is no longer useful - default
 // ahead to tomorrow instead.
 const END_OF_DAY_HOUR = 16;
+
+// Side categories (raw API values, not display labels) open by default -
+// everything else (Milk, Condiment, Grain, the blank/"Other" bucket, and
+// any category not yet seen) starts collapsed. Entree boxes are never
+// collapsible.
+const DEFAULT_EXPANDED_CATEGORIES = new Set(["Vegetable", "Fruit"]);
 
 const state = {
   selectedIds: loadSelectedIds(),
   excludedAllergens: loadExcludedAllergens(),
   currentDate: defaultDate(),
   viewMode: loadViewMode(), // "day" | "week"
+  // Only holds entries the user has actually toggled, so it stays a
+  // sparse diff against DEFAULT_EXPANDED_CATEGORIES - see
+  // isCategoryCollapsed(). One global setting applied the same way on
+  // every menu, not per-section, per how it's asked for.
+  collapsedOverrides: loadCollapsedOverrides(),
 };
 
 // Flat lookup: menuId (the picker's id, which for Idea Center variants is
@@ -109,6 +121,31 @@ function saveViewMode() {
   } catch (e) {
     /* ignore - see saveSelectedIds */
   }
+}
+
+function loadCollapsedOverrides() {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveCollapsedOverrides() {
+  try {
+    localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(state.collapsedOverrides));
+  } catch (e) {
+    /* ignore - see saveSelectedIds */
+  }
+}
+
+function isCategoryCollapsed(category) {
+  if (Object.prototype.hasOwnProperty.call(state.collapsedOverrides, category)) {
+    return state.collapsedOverrides[category];
+  }
+  return !DEFAULT_EXPANDED_CATEGORIES.has(category);
 }
 
 // ---------- API calls ----------
@@ -541,14 +578,19 @@ function renderSideGroups(sideItems) {
   for (const cat of orderedCats) {
     const label = SIDE_CATEGORY_LABELS[cat] || cat || "Other";
     const items = byCategory.get(cat).map((it) => `<li>${renderItemLine(it)}</li>`).join("");
+    const collapsed = isCategoryCollapsed(cat);
+    const catAttr = escapeHtml(cat);
     rows.push(`
-      <div class="sideGroup">
-        <div class="sideLabel">${label}</div>
+      <div class="sideGroup${collapsed ? " collapsed" : ""}" data-category="${catAttr}">
+        <button class="sideLabel" data-category="${catAttr}">${escapeHtml(label)}</button>
         <ul class="sideList">${items}</ul>
       </div>
     `);
   }
-  return rows.join("");
+  // Wrapped in their own flex row so collapsed groups (small pills) can
+  // sit side by side and wrap, while an expanded one still takes a full
+  // row of its own - see .sideGroup/.sideGroup.collapsed.
+  return `<div class="sideGroups">${rows.join("")}</div>`;
 }
 
 async function renderSections() {
@@ -963,6 +1005,24 @@ document.addEventListener("click", (e) => {
   bubble.style.top = `${rect.top}px`;
   openTooltip = bubble;
   tooltipTimer = setTimeout(closeTooltip, 4000);
+});
+
+// Collapsing a category (Milk, Condiments, etc. - never the Entree box)
+// is one global setting applied identically everywhere, not per-section,
+// so toggling it updates every currently-rendered .sideGroup for that
+// category directly instead of re-fetching/re-rendering everything.
+// Delegated for the same reason as the tooltip listener above.
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".sideLabel");
+  if (!btn) return;
+  const category = btn.dataset.category;
+  const collapsed = !isCategoryCollapsed(category);
+  state.collapsedOverrides[category] = collapsed;
+  saveCollapsedOverrides();
+  const selector = `.sideGroup[data-category="${CSS.escape(category)}"]`;
+  for (const el of document.querySelectorAll(selector)) {
+    el.classList.toggle("collapsed", collapsed);
+  }
 });
 
 buildPicker();
