@@ -569,7 +569,31 @@ async function renderSections() {
   const renderOne = state.viewMode === "week" ? renderOneMenuWeek : renderOneMenu;
   await Promise.all(state.selectedIds.map((id) => renderOne(id, sectionEls[id])));
 
-  if (state.viewMode === "week") syncWeekScrolls();
+  if (state.viewMode === "week") {
+    syncWeekScrolls();
+    scrollWeekToCurrentDate();
+  }
+}
+
+// Scrolls to whichever date the nav is pointing at (the ".current" card -
+// see renderOneMenuWeek) so e.g. "Jump to Tomorrow" actually brings
+// tomorrow into view instead of leaving the row sitting on Monday. Only
+// needs to run on one row: syncWeekScrolls()'s listener mirrors the
+// resulting scroll position onto every other selected menu's row as it
+// animates.
+function scrollWeekToCurrentDate() {
+  // scrollIntoView(), Element.scrollTo({behavior:"smooth"}), and plain
+  // offsetLeft all proved unreliable (settled short, didn't move at all,
+  // or offsetLeft was relative to some ancestor other than the scroll
+  // container). getBoundingClientRect() gives real on-screen geometry
+  // regardless of positioning context, so the delta from it is exact.
+  // Runs on every selected menu's row directly rather than leaning on
+  // syncWeekScrolls() to propagate from just one.
+  for (const target of document.querySelectorAll(".weekDayCard.current")) {
+    const container = target.parentElement;
+    const delta = target.getBoundingClientRect().left - container.getBoundingClientRect().left;
+    container.scrollLeft += delta;
+  }
 }
 
 // Every week row uses the same fixed-width day columns (see .weekDayCard),
@@ -727,7 +751,16 @@ async function renderOneMenuWeek(menuId, bodyEl) {
 
   const cardsHtml = dates
     .map((d, i) => {
-      const cls = isToday(d) ? "weekDayCard today" : "weekDayCard";
+      let cls = "weekDayCard";
+      if (isToday(d)) cls += " today";
+      // Scroll target for scrollWeekToCurrentDate() - real today, or
+      // whatever "Jump to Today/Tomorrow" points to right now. Both
+      // computed fresh against the clock (not state.currentDate): paging
+      // week-to-week shifts state.currentDate by whole weeks, which
+      // preserves its weekday forever, so matching against it directly
+      // would keep re-marking (and re-scrolling to) that same weekday on
+      // every future/past week - never resetting to a sensible default.
+      if (isToday(d) || d.getTime() === defaultDate().getTime()) cls += " current";
       return `
         <div class="${cls}">
           <div class="weekDayHeader">
@@ -876,3 +909,14 @@ renderDayLabel();
 updateTodayButtonLabel();
 updateViewModeButtons();
 renderSections();
+
+// Both of these are only computed at click/render time, so a tab left
+// open across the 4pm cutoff (or midnight) would otherwise show a stale
+// "Jump to Today" label or a stuck "today" highlight until the next
+// interaction. This doesn't change what's actually displayed - just
+// keeps the label and highlight honest about what "now" is. Once a
+// minute is plenty for something that only changes twice a day at most.
+setInterval(() => {
+  updateTodayButtonLabel();
+  renderDayLabel();
+}, 60000);

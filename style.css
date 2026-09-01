@@ -314,12 +314,14 @@ body {
   gap: 0.75rem;
   overflow-x: auto;
   padding-bottom: 0.25rem;
-  scroll-snap-type: x proximity;
+  /* No scroll-snap: it silently overrode/reverted programmatic scrollLeft
+     changes (scrollIntoView, scrollTo, and direct assignment all failed
+     to move the row while snap was active), which broke "jump to a day"
+     in week view. That's worth more than the swipe-snap nicety. */
 }
 
 .weekDayCard {
   flex: 0 0 260px;
-  scroll-snap-align: start;
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 10px;
