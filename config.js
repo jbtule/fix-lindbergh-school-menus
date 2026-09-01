@@ -187,3 +187,29 @@ const IDEA_CENTER_GRADE_BY_WEEKDAY = {
   3: "3rd Grade", // Wednesday
   4: "1st & 2nd Grade", // Thursday
 };
+
+// Each product comes back with a boolean-ish allergen_* field per allergen
+// ("1"/null, not a real boolean - see isAllergenFlagged() in app.js).
+// `icon` is emoji, shown as a badge next to the item. Where two fields
+// share an icon (dairy/milk), badges are deduped and their labels merged
+// so an item doesn't show the same emoji twice. `positive: true` marks an
+// entry that isn't a warning (vegetarian-friendly), styled differently.
+// `textOnly: true` means there's no decent emoji for it (currently unused,
+// but the badge renderer in app.js still supports it) - it renders as a
+// small text pill instead of an icon.
+const ALLERGEN_DEFS = [
+  { field: "allergen_dairy", label: "Dairy", icon: "🥛" },
+  { field: "allergen_milk", label: "Milk", icon: "🥛" },
+  { field: "allergen_egg", label: "Egg", icon: "🥚" },
+  { field: "allergen_fish", label: "Fish", icon: "🐟" },
+  { field: "allergen_shellfish", label: "Shellfish", icon: "🦐" },
+  { field: "allergen_peanut", label: "Peanut", icon: "🥜" },
+  { field: "allergen_treenuts", label: "Tree Nuts", icon: "🌰" },
+  { field: "allergen_soy", label: "Soy", icon: "🌱" },
+  { field: "allergen_wheat", label: "Wheat", icon: "🌾" },
+  { field: "allergen_gluten", label: "Gluten", icon: "🍞" },
+  { field: "allergen_pork", label: "Pork", icon: "🐖" },
+  { field: "allergen_sesame", label: "Sesame", icon: "🫘" },
+  { field: "allergen_other", label: "Other", icon: "⚠️" },
+  { field: "allergen_vegetarian", label: "Vegetarian", icon: "🥦", positive: true },
+];

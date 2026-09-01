@@ -108,6 +108,22 @@ async function fetchMenuItems(docId) {
         product {
           name
           category
+          hide_on_web_menu_view
+          hide_on_calendars
+          allergen_dairy
+          allergen_egg
+          allergen_fish
+          allergen_gluten
+          allergen_milk
+          allergen_peanut
+          allergen_pork
+          allergen_shellfish
+          allergen_soy
+          allergen_sesame
+          allergen_treenuts
+          allergen_vegetarian
+          allergen_wheat
+          allergen_other
         }
       }
     }
@@ -284,6 +300,25 @@ function nextOccurrence(from, weekday) {
 
 // ---------- Rendering menu sections ----------
 
+// The district's own web menu view respects these two flags (e.g. milk
+// items come back with hide_on_web_menu_view: "1" and never show up on
+// the real site's calendar). Left off for now - milk should show - but
+// the plumbing (fetched fields + this check) stays in place in case that
+// changes later. Flip to true to hide whatever the district marks hidden.
+const HONOR_HIDE_FLAGS = false;
+
+function isHiddenFromWebView(product) {
+  if (!HONOR_HIDE_FLAGS) return false;
+  const truthy = (v) => v === true || v === "1" || v === 1;
+  return truthy(product.hide_on_web_menu_view) || truthy(product.hide_on_calendars);
+}
+
+// false: allergen badges are icon-only, with the name(s) available on
+// hover/long-press via the title attribute (current default). true: badges
+// show icon + label text in a bordered "Allergens" box, no hover needed -
+// better for touch devices that can't hover, noisier for everything else.
+const ALLERGEN_SHOW_LABELS = false;
+
 const CATEGORY_ORDER = ["Entrees", "Vegetable", "Fruit", "Milk", "Condiment"];
 
 function sortItemsForDay(items) {
@@ -321,7 +356,7 @@ function renderSideGroups(sideItems) {
   const rows = [];
   for (const cat of orderedCats) {
     const label = SIDE_CATEGORY_LABELS[cat] || cat || "Other";
-    const items = byCategory.get(cat).map((it) => `<li>${escapeHtml(it.product.name)}</li>`).join("");
+    const items = byCategory.get(cat).map((it) => `<li>${renderItemLine(it)}</li>`).join("");
     rows.push(`
       <div class="sideGroup">
         <div class="sideLabel">${label}</div>
@@ -396,7 +431,9 @@ async function renderOneMenu(menuId, bodyEl) {
     return;
   }
 
-  const dayItems = items.filter((it) => it.day === date.getDate() && it.product);
+  const dayItems = items.filter(
+    (it) => it.day === date.getDate() && it.product && !isHiddenFromWebView(it.product)
+  );
 
   if (dayItems.length === 0) {
     bodyEl.innerHTML = `<p class="empty">No items published for this day yet.</p>`;
@@ -422,7 +459,7 @@ async function renderOneMenu(menuId, bodyEl) {
       <div class="choiceGroup">
         <div class="choiceLabel">Entree</div>
         <ul class="choiceList">
-          ${entreeItems.map((it) => `<li>${escapeHtml(it.product.name)}</li>`).join("")}
+          ${entreeItems.map((it) => `<li>${renderItemLine(it)}</li>`).join("")}
         </ul>
       </div>
     `
@@ -441,6 +478,70 @@ function escapeHtml(s) {
   const div = document.createElement("div");
   div.textContent = s;
   return div.innerHTML;
+}
+
+// The API sends allergen_* flags as "1"/null rather than real booleans.
+function isAllergenFlagged(v) {
+  return v === true || v === "1" || v === 1;
+}
+
+// Badges for one product's flagged allergens, deduped so dairy+milk (same
+// emoji) merge into one badge instead of showing the same icon twice.
+// "Positive" entries (vegetarian - not a warning) are kept separate from
+// the actual allergens rather than lumped into an "Allergens" grouping.
+function allergenBadgesHtml(product) {
+  const byIcon = new Map(); // icon (or "" for text-only) -> labels[]
+  const positive = []; // [{ icon, label }]
+  for (const def of ALLERGEN_DEFS) {
+    if (!isAllergenFlagged(product[def.field])) continue;
+    if (def.positive) {
+      positive.push(def);
+      continue;
+    }
+    const icon = def.textOnly ? "" : def.icon;
+    if (!byIcon.has(icon)) byIcon.set(icon, []);
+    byIcon.get(icon).push(def.label);
+  }
+
+  // Positive badges (vegetarian) stay inline right after the item name.
+  // The Allergens box, if any, is a block of its own on the line below -
+  // see renderItemLine.
+  const positiveHtml = positive
+    .map((def) => `<span class="allergenBadge allergenBadge-positive" title="${escapeHtml(def.label)}">${def.icon}</span>`)
+    .join("");
+  return {
+    positiveHtml,
+    warningHtml: renderAllergenWarnings(byIcon),
+  };
+}
+
+// Always shown in a labeled "Allergens" box - ALLERGEN_SHOW_LABELS only
+// decides what's inside it: readable text+icon chips, or (default)
+// icon-only badges with the name on hover/long-press.
+function renderAllergenWarnings(byIcon) {
+  if (byIcon.size === 0) return "";
+  const chips = [...byIcon.entries()]
+    .map(([icon, labels]) => {
+      if (ALLERGEN_SHOW_LABELS) {
+        return `<span class="allergenChip">${icon ? `${icon} ` : ""}${escapeHtml(labels.join("/"))}</span>`;
+      }
+      const label = escapeHtml(labels.join(", "));
+      return icon
+        ? `<span class="allergenBadge" title="${label}">${icon}</span>`
+        : `<span class="allergenBadge allergenBadge-text" title="${label}">${label}</span>`;
+    })
+    .join("");
+  return `
+    <span class="allergenGroup">
+      <span class="allergenGroupLabel">Allergens</span>
+      <span class="allergenRow">${chips}</span>
+    </span>
+  `;
+}
+
+function renderItemLine(it) {
+  const { positiveHtml, warningHtml } = allergenBadgesHtml(it.product);
+  return `<span class="itemName">${escapeHtml(it.product.name)}</span>${positiveHtml}${warningHtml}`;
 }
 
 // ---------- Wire up ----------
