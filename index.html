@@ -24,7 +24,7 @@
     <div class="topbarButtons">
       <!-- Hidden at startup unless TRANSLATE_WIDGET_ENABLED (app.js) is
            true - see loadTranslateWidget(). -->
-      <button id="languageToggle" class="pickerToggle" aria-expanded="false" aria-controls="languagePicker" title="Language" aria-label="Language" hidden>
+      <button id="languageToggle" class="pickerToggle" aria-expanded="false" aria-controls="languagePicker" title="Translate" aria-label="Translate" hidden>
         🌐
       </button>
       <button id="excludeToggle" class="pickerToggle" aria-expanded="false" aria-controls="excludePicker">
@@ -50,11 +50,15 @@
 
   <aside id="languagePicker" class="picker" hidden>
     <div class="pickerHeader">
-      <h2>Language</h2>
+      <h2>Translate</h2>
       <button id="languagePickerClose" class="iconBtn" aria-label="Close">&times;</button>
     </div>
     <div class="pickerBody">
       <div id="google_translate_element"></div>
+      <label class="pickerCheckbox">
+        <input type="checkbox" id="translateFullListToggle" />
+        Show full language list
+      </label>
     </div>
     <div class="pickerFooter">
       <button id="languagePickerDone" class="primaryBtn">Done</button>
@@ -117,8 +121,8 @@
     </a>
   </footer>
 
-  <script src="version.js?v=1fb9e1d0"></script>
+  <script src="version.js?v=6c48026e"></script>
   <script src="config.js?v=d42169e2"></script>
-  <script src="app.js?v=ad15a98b"></script>
+  <script src="app.js?v=88659fc6"></script>
 </body>
 </html>

@@ -566,25 +566,50 @@ const ALLERGEN_SHOW_LABELS = false;
 // when disabled, nothing is fetched from Google at all, not just hidden.
 const TRANSLATE_WIDGET_ENABLED = true;
 
-// Dynamically injects Google's script only when enabled, rather than a
-// static <script> tag in index.html, so disabling this really means zero
-// network requests to Google - not just an empty/hidden widget.
 // Matches the language list the district's own site offers (seen live -
 // they must feed this into includedLanguages from a per-district setting
 // somewhere, since it isn't in their bundled JS as a fixed list),
 // presumably tailored to their families' actual home languages rather
-// than Google's full ~100-language default.
+// than Google's full ~100-language default. The "show full list" checkbox
+// in the Language picker re-inits the widget without this restriction.
 const TRANSLATE_LANGUAGES = "en,es,fr,hy,zh-CN,ko,pt,ru,vi";
+const TRANSLATE_FULL_LIST_KEY = "lsm.translateFullList";
 
+function loadTranslateFullList() {
+  try {
+    return localStorage.getItem(TRANSLATE_FULL_LIST_KEY) === "true";
+  } catch (e) {
+    return false;
+  }
+}
+
+function saveTranslateFullList(value) {
+  try {
+    localStorage.setItem(TRANSLATE_FULL_LIST_KEY, String(value));
+  } catch (e) {
+    /* ignore - see saveSelectedIds */
+  }
+}
+
+// Rebuildable, since the checkbox needs to re-init the widget with
+// different options - Google's widget has no "update config" API of its
+// own, so this just clears the container and constructs a fresh one.
+function initTranslateElement() {
+  const el = document.getElementById("google_translate_element");
+  el.innerHTML = "";
+  const options = { pageLanguage: "en" };
+  if (!loadTranslateFullList()) options.includedLanguages = TRANSLATE_LANGUAGES;
+  new google.translate.TranslateElement(options, el.id);
+}
+
+// Dynamically injects Google's script only when enabled, rather than a
+// static <script> tag in index.html, so disabling this really means zero
+// network requests to Google - not just an empty/hidden widget.
 function loadTranslateWidget() {
   if (!TRANSLATE_WIDGET_ENABLED) return;
   document.getElementById("languageToggle").hidden = false;
-  window.googleTranslateElementInit = function () {
-    new google.translate.TranslateElement(
-      { pageLanguage: "en", includedLanguages: TRANSLATE_LANGUAGES },
-      "google_translate_element"
-    );
-  };
+  document.getElementById("translateFullListToggle").checked = loadTranslateFullList();
+  window.googleTranslateElementInit = initTranslateElement;
   const script = document.createElement("script");
   script.src = "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
   script.async = true;
@@ -1051,6 +1076,16 @@ document.getElementById("languageToggle").addEventListener("click", openLanguage
 document.getElementById("languagePickerClose").addEventListener("click", closeLanguagePicker);
 document.getElementById("languagePickerDone").addEventListener("click", closeLanguagePicker);
 document.getElementById("languagePickerScrim").addEventListener("click", closeLanguagePicker);
+document.getElementById("translateFullListToggle").addEventListener("change", (e) => {
+  // Rebuilding the widget in place (clear the container, construct a new
+  // one) left it empty until a real page reload - it seems to rely on
+  // some internal state tied to its first init that doesn't survive
+  // being torn down and reconstructed. A full reload is the reliable
+  // version of the same thing: it goes through loadTranslateWidget()
+  // fresh, same as any normal page load.
+  saveTranslateFullList(e.target.checked);
+  location.reload();
+});
 document.getElementById("disclaimerToggle").addEventListener("click", openDisclaimer);
 document.getElementById("disclaimerClose").addEventListener("click", closeDisclaimer);
 document.getElementById("disclaimerDone").addEventListener("click", closeDisclaimer);
