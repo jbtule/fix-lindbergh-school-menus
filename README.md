@@ -1,6 +1,7 @@
 # Lindbergh School Menus (Unofficial)
 
 **[jbtule.github.io/fix-lindbergh-school-menus](https://jbtule.github.io/fix-lindbergh-school-menus/)**
+· built with [Claude Code](https://claude.com/claude-code)
 
 A static, mobile-friendly menu viewer for Lindbergh School District (Missouri),
 built because the district's official menu site is slow and hard to use day
