@@ -725,6 +725,14 @@ body:not(.week-view) .menuSection {
   overflow: hidden;
 }
 
+/* Author CSS always beats the UA's [hidden] { display: none }, regardless
+   of specificity - the bare .picker[hidden] rule above hit this same bug
+   first. Without this, .printPopover's own `display: flex` wins and the
+   popover shows up on load, before anything's ever been clicked. */
+.printPopover[hidden] {
+  display: none;
+}
+
 .printPopoverBtn {
   display: flex;
   flex-direction: column;
