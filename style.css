@@ -693,23 +693,28 @@ body:not(.week-view) .menuSection {
 
 /* ---------- Print ---------- */
 
-/* Subtle by design - a small, low-contrast icon next to each menu's own
-   heading rather than a bold standalone button, so it doesn't compete
-   with the heading itself. */
+/* A small pill, same shape language as .pickerToggle, but quieter (muted
+   text, no fill) so it reads as pressable next to each menu's own
+   heading without competing with it the way a full-size button would. */
 .printSectionBtn {
-  background: none;
-  border: none;
-  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.75rem;
   line-height: 1;
-  padding: 0.15rem;
-  margin-left: 0.2rem;
+  padding: 0.25rem 0.6rem;
+  margin-left: 0.5rem;
   cursor: pointer;
-  opacity: 0.55;
-  vertical-align: 1px;
+  vertical-align: middle;
 }
 
 .printSectionBtn:hover {
-  opacity: 1;
+  color: var(--fg);
+  border-color: var(--accent);
 }
 
 .printPopover {
@@ -893,5 +898,12 @@ body:not(.week-view) .menuSection {
 
   .printAllergenLabel {
     color: var(--muted);
+  }
+
+  .printFallbackNote {
+    color: var(--muted);
+    font-style: italic;
+    margin-top: 2rem;
+    text-align: center;
   }
 }

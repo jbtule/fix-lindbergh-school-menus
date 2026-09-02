@@ -768,7 +768,7 @@ async function renderSections() {
     section.innerHTML = `
       <h2>
         ${group.school} - ${group.name}
-        ${CAN_PRINT ? `<button class="printSectionBtn" aria-label="Print this menu" title="Print this menu">🖨️</button>` : ""}
+        ${CAN_PRINT ? `<button class="printSectionBtn" aria-label="Print this menu" title="Print this menu">🖨️ Print</button>` : ""}
       </h2>
       <div class="sectionBody"><p class="loading">Loading...</p></div>
     `;
@@ -1412,6 +1412,23 @@ document.addEventListener("click", (e) => {
   closePrintPopover();
 });
 window.addEventListener("scroll", closePrintPopover, { passive: true, capture: true });
+// The print CSS hides everything except #printArea, which is only ever
+// filled by printWeek()/printMonth() - so a native Ctrl+P/Cmd+P (or
+// iOS's Share > Print) without ever tapping a menu's own Print button
+// first would otherwise print a blank page. Only fills it in when it's
+// actually empty - a real printWeek()/printMonth() run always overwrites
+// this note with the real thing on its next call regardless.
+window.addEventListener("beforeprint", () => {
+  const area = document.getElementById("printArea");
+  if (area.innerHTML.trim() === "") {
+    area.innerHTML = `
+      <p class="printFallbackNote">
+        Nothing to print yet - use the 🖨️ Print button next to a menu's
+        heading, then print again.
+      </p>
+    `;
+  }
+});
 document.getElementById("disclaimerToggle").addEventListener("click", openDisclaimer);
 document.getElementById("disclaimerClose").addEventListener("click", closeDisclaimer);
 document.getElementById("disclaimerDone").addEventListener("click", closeDisclaimer);
