@@ -1132,6 +1132,19 @@ async function computeDayItemsForPrint(info, date) {
 // documented API to ask it directly. Print is English-only regardless of
 // the page's translation.
 
+// Marks the window.print() calls in printWeek()/printMonth() as button-
+// driven so the beforeprint listener further down can tell them apart
+// from a native Ctrl+P/Cmd+P/Share>Print - see that listener for why.
+let printingViaButton = false;
+function printNow() {
+  printingViaButton = true;
+  try {
+    window.print();
+  } finally {
+    printingViaButton = false;
+  }
+}
+
 // Clean, table-shaped week print - a plain category-by-day grid, easy to
 // scan at a glance and free of anything that only makes sense as a
 // clickable on-screen control. Categories collapsed on screen (see
@@ -1204,7 +1217,7 @@ async function printWeek(group) {
     </table>
   `;
 
-  window.print();
+  printNow();
 }
 
 // Compact whole-month calendar, entree names only, for one menu - see
@@ -1249,7 +1262,7 @@ async function printMonth(group) {
     </table>
   `;
 
-  window.print();
+  printNow();
 }
 
 // The API sends allergen_* flags as "1"/null rather than real booleans.
@@ -1415,19 +1428,21 @@ window.addEventListener("scroll", closePrintPopover, { passive: true, capture: t
 // The print CSS hides everything except #printArea, which is only ever
 // filled by printWeek()/printMonth() - so a native Ctrl+P/Cmd+P (or
 // iOS's Share > Print) without ever tapping a menu's own Print button
-// first would otherwise print a blank page. Only fills it in when it's
-// actually empty - a real printWeek()/printMonth() run always overwrites
-// this note with the real thing on its next call regardless.
+// first would otherwise print whatever #printArea last happened to hold
+// (stale content from an earlier button print, or nothing at all).
+// printingViaButton (see printNow() above) distinguishes "print was
+// actually driven by the button" from any other way of reaching the
+// browser's print dialog, so a native trigger always gets pointed at the
+// real print icon instead of possibly showing an unrelated menu's
+// leftover printout.
 window.addEventListener("beforeprint", () => {
-  const area = document.getElementById("printArea");
-  if (area.innerHTML.trim() === "") {
-    area.innerHTML = `
-      <p class="printFallbackNote">
-        Nothing to print yet - use the 🖨️ Print button next to a menu's
-        heading, then print again.
-      </p>
-    `;
-  }
+  if (printingViaButton) return;
+  document.getElementById("printArea").innerHTML = `
+    <p class="printFallbackNote">
+      Nothing to print yet - use the 🖨️ Print button next to a menu's
+      heading, then print again.
+    </p>
+  `;
 });
 document.getElementById("disclaimerToggle").addEventListener("click", openDisclaimer);
 document.getElementById("disclaimerClose").addEventListener("click", closeDisclaimer);
