@@ -1137,7 +1137,10 @@ async function computeDayItemsForPrint(info, date) {
 // outright. A no-op (resolves immediately, no delay) when no translation
 // is active - only translated users pay for this.
 const TRANSLATION_SETTLE_DELAY = 300;
-const TRANSLATION_MAX_WAIT = 1500;
+const TRANSLATION_MAX_WAIT = 2500;
+// How long to sit on the deselected value before switching back - see the
+// toggle comment below.
+const TRANSLATION_TOGGLE_DELAY = 80;
 
 function waitForTranslation(el) {
   const translated =
@@ -1146,7 +1149,6 @@ function waitForTranslation(el) {
   if (!translated) return Promise.resolve();
 
   const combo = document.querySelector(".goog-te-combo");
-  if (combo && combo.value) combo.dispatchEvent(new Event("change"));
 
   return new Promise((resolve) => {
     let settleTimer = null;
@@ -1166,6 +1168,23 @@ function waitForTranslation(el) {
     // isn't available for this content) - still resolve after the settle
     // delay even with zero mutations observed.
     settleTimer = setTimeout(finish, TRANSLATION_SETTLE_DELAY);
+
+    if (combo && combo.value) {
+      // Firing `change` with the value left unchanged looks like a no-op
+      // to Google's own handler - it appears to compare against the value
+      // it already has and skip re-processing new content. Switching away
+      // to the deselected/original-language value and back forces an
+      // actual transition, the same as if someone had switched languages
+      // and switched right back - flickers the whole page briefly, but
+      // only while a translation is active.
+      const target = combo.value;
+      combo.value = "";
+      combo.dispatchEvent(new Event("change"));
+      setTimeout(() => {
+        combo.value = target;
+        combo.dispatchEvent(new Event("change"));
+      }, TRANSLATION_TOGGLE_DELAY);
+    }
   });
 }
 
