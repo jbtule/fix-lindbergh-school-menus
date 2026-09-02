@@ -1446,8 +1446,8 @@ window.addEventListener("beforeprint", () => {
   if (printingViaButton) return;
   document.getElementById("printArea").innerHTML = `
     <p class="printFallbackNote">
-      Nothing to print yet - use the 🖨️ Print button next to a menu's
-      heading, then print again.
+      Nothing to print yet - cancel this, then use the 🖨️ Print button
+      next to a menu's heading instead. It opens the print dialog for you.
     </p>
   `;
 });
