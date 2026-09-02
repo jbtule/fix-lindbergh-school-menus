@@ -813,48 +813,26 @@ body:not(.week-view) .menuSection {
     margin-top: 0;
   }
 
-  /* A category collapsed on screen stays fully out of the printout too,
-     pill and all - there's nothing left to tap on paper, so no reason to
-     take up space announcing it. */
-  #printArea .sideGroup.collapsed {
-    display: none;
-  }
-
-  .printWeekDays {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-  }
-
-  .printDay {
-    flex: 1 1 30%;
-    min-width: 200px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.4rem 0.6rem;
-    break-inside: avoid;
-  }
-
-  .printDay h3 {
-    margin: 0 0 0.35rem;
-    font-size: 0.95rem;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 0.2rem;
-  }
-
-  .printMonthTable {
+  /* Both print tables share the same plain grid look - one row/column of
+     borders, no shading or rounded pills, nothing that reads as
+     clickable. */
+  .printMonthTable,
+  .printWeekTable {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
   }
 
   .printMonthTable th,
-  .printMonthTable td {
+  .printMonthTable td,
+  .printWeekTable th,
+  .printWeekTable td {
     border: 1px solid var(--border);
     padding: 0.3rem 0.4rem;
     vertical-align: top;
     text-align: left;
     font-size: 0.8rem;
+    font-weight: normal;
   }
 
   .printMonthTable td {
@@ -867,8 +845,36 @@ body:not(.week-view) .menuSection {
     margin-bottom: 0.15rem;
   }
 
-  .printMonthNote {
+  .printMonthNote,
+  .printWeekNote {
     color: var(--muted);
     font-style: italic;
+  }
+
+  .printWeekTable thead th {
+    text-align: center;
+  }
+
+  .printWeekRowLabel {
+    white-space: nowrap;
+    color: var(--muted);
+  }
+
+  .printGradeNote {
+    display: block;
+    font-weight: normal;
+    color: var(--muted);
+  }
+
+  /* Same idea as .itemName-excluded on screen - a dietary match still
+     needs to stand out, just without the bordered/colored box that'd
+     look like an interactive alert here. */
+  .printItemName-excluded {
+    color: var(--danger-label);
+    font-weight: 600;
+  }
+
+  .printItemIcons {
+    font-size: 0.85em;
   }
 }

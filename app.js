@@ -855,30 +855,38 @@ function syncWeekScrolls() {
 // Computes the HTML for one menu on one date - shared by day view (one
 // call) and week view (one call per weekday column). Never touches the
 // DOM directly, so it works the same either way.
-async function computeDayHtml(info, date) {
+// Resolves which items (if any) apply to one menu on one date, or a short
+// explanation when none do - shared by computeDayHtml() (on-screen day/
+// week view) and computeDayItemsForPrint() (the clean week print table),
+// so both agree on what counts as "not scheduled" vs. "nothing published
+// yet" vs. an actual fetch failure.
+async function fetchDayItems(info, date) {
   const weekday = date.getDay();
 
   if (!info.hasFullWeek && !info.specificDays.has(weekday)) {
     const next = nextOccurrenceAmong(date, info.specificDays);
-    return `<p class="notScheduled">Not scheduled this day. Next: ${formatDate(next)}.</p>`;
+    return { kind: "notScheduled", message: `Not scheduled this day. Next: ${formatDate(next)}.` };
   }
 
   let docId;
   try {
     docId = await fetchDocIdForDate(info.apiId, date);
   } catch (e) {
-    return `<p class="error">Couldn't load this menu (${e.message}).</p>`;
+    return { kind: "error", message: `Couldn't load this menu (${e.message}).` };
   }
 
   if (!docId) {
-    return `<p class="empty">No menu published for ${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}.</p>`;
+    return {
+      kind: "empty",
+      message: `No menu published for ${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}.`,
+    };
   }
 
   let items;
   try {
     items = await fetchMenuItems(docId);
   } catch (e) {
-    return `<p class="error">Couldn't load items (${e.message}).</p>`;
+    return { kind: "error", message: `Couldn't load items (${e.message}).` };
   }
 
   const dayItems = items.filter(
@@ -886,8 +894,18 @@ async function computeDayHtml(info, date) {
   );
 
   if (dayItems.length === 0) {
-    return `<p class="empty">No items published for this day yet.</p>`;
+    return { kind: "empty", message: "No items published for this day yet." };
   }
+
+  return { items: dayItems };
+}
+
+async function computeDayHtml(info, date) {
+  const weekday = date.getDay();
+
+  const result = await fetchDayItems(info, date);
+  if (result.kind) return `<p class="${result.kind}">${result.message}</p>`;
+  const dayItems = result.items;
 
   // Only shows on a day that was explicitly selected as that grade's day
   // (specificDays) - never just because "Full Week" happens to include
@@ -1079,6 +1097,52 @@ async function computeMonthEntreeText(info, date) {
 // screen (see .sideGroup.collapsed handling in the print media query)
 // comes out exactly as collapsed on paper. Printed one menu at a time -
 // see the per-section print icon in renderSections().
+// One item's plain-text print line: the name, any positive (vegetarian/
+// vegan) badge inline exactly as shown on screen (already unboxed, just
+// an icon+title), and negative allergens as a bare row of icons after it
+// rather than allergenBadgesHtml()'s bordered "Allergens" box - the whole
+// point of the print table is not looking like an interactive UI dumped
+// onto paper. A dietary exclusion still stands out (bold + the danger
+// color) without needing a box to do it.
+function printItemLine(it) {
+  const { positiveHtml, isExcluded } = allergenBadgesHtml(it.product);
+  const icons = ALLERGEN_DEFS.filter(
+    (def) => !def.positive && isAllergenFlagged(it.product[def.field])
+  ).map((def) => def.icon || def.label);
+  const iconsHtml = icons.length ? ` <span class="printItemIcons">${icons.join(" ")}</span>` : "";
+  const nameCls = isExcluded ? "printItemName printItemName-excluded" : "printItemName";
+  return `<span class="${nameCls}">${escapeHtml(it.product.name)}</span>${positiveHtml}${iconsHtml}`;
+}
+
+// Same fetchDayItems() result as the on-screen view, but grouped by raw
+// category rather than turned into HTML - the print table builds its own
+// rows from this instead of reusing computeDayHtml()'s station-grouped,
+// collapsible-pill markup (built for interactive on-screen use, not a
+// plain grid). "Entrees" is deliberately not split into high-school food
+// stations here - that grouping is a visual aid for the choice-box UI,
+// not meaningful in a table cell.
+async function computeDayItemsForPrint(info, date) {
+  const result = await fetchDayItems(info, date);
+  if (result.kind) return { note: result.message };
+  const byCategory = new Map();
+  for (const it of result.items) {
+    const cat = it.product.category || "";
+    if (!byCategory.has(cat)) byCategory.set(cat, []);
+    byCategory.get(cat).push(it);
+  }
+  const weekday = date.getDay();
+  const grade =
+    info.school === "Idea Center" && info.specificDays.has(weekday)
+      ? IDEA_CENTER_GRADE_BY_WEEKDAY[weekday]
+      : null;
+  return { byCategory, grade };
+}
+
+// Clean, table-shaped week print - a plain category-by-day grid, easy to
+// scan at a glance and free of anything that only makes sense as a
+// clickable on-screen control. Categories collapsed on screen (see
+// isCategoryCollapsed()) are left out of the grid entirely, same as they
+// are on screen, just by omitting the row rather than hiding it.
 async function printWeek(group) {
   const dates = weekDatesFor(state.currentDate);
   const area = document.getElementById("printArea");
@@ -1086,22 +1150,65 @@ async function printWeek(group) {
   area.innerHTML = `
     <section class="printMenuSection">
       <h2>${escapeHtml(group.school)} - ${escapeHtml(group.name)}</h2>
-      <div class="printWeekDays"><p class="loading">Loading...</p></div>
+      <p class="loading">Loading...</p>
     </section>
   `;
-  const body = area.querySelector(".printWeekDays");
+  const loading = area.querySelector(".loading");
 
-  const dayHtmls = await Promise.all(dates.map((d) => computeDayHtml(group, d)));
-  body.innerHTML = dates
-    .map(
-      (d, j) => `
-      <div class="printDay">
-        <h3>${WEEKDAY_NAMES[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}</h3>
-        ${dayHtmls[j]}
-      </div>
-    `
-    )
+  const dayResults = await Promise.all(dates.map((d) => computeDayItemsForPrint(group, d)));
+
+  // Whatever categories actually showed up this week, in the site's usual
+  // side-category order, minus anything collapsed on screen. "Entrees"
+  // always leads regardless of that order, and is never collapsible.
+  const categoriesPresent = new Set();
+  for (const r of dayResults) {
+    if (r.byCategory) for (const cat of r.byCategory.keys()) categoriesPresent.add(cat);
+  }
+  categoriesPresent.delete("Entrees");
+  const sideCats = [
+    ...SIDE_CATEGORY_ORDER.filter((c) => categoriesPresent.has(c)),
+    ...[...categoriesPresent].filter((c) => !SIDE_CATEGORY_ORDER.includes(c)),
+  ].filter((c) => !isCategoryCollapsed(c));
+  const rows = ["Entrees", ...sideCats];
+
+  const headerRow = `
+    <tr>
+      <th></th>
+      ${dates
+        .map((d, i) => {
+          const grade = dayResults[i].grade;
+          return `
+            <th>
+              ${WEEKDAY_NAMES[d.getDay()].slice(0, 3)} ${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getDate()}
+              ${grade ? `<span class="printGradeNote">${escapeHtml(grade)}</span>` : ""}
+            </th>
+          `;
+        })
+        .join("")}
+    </tr>
+  `;
+
+  const bodyRows = rows
+    .map((cat) => {
+      const label = cat === "Entrees" ? "Entree" : SIDE_CATEGORY_LABELS[cat] || cat || "Other";
+      const cells = dayResults
+        .map((r) => {
+          if (r.note) return cat === "Entrees" ? `<td class="printWeekNote">${escapeHtml(r.note)}</td>` : "<td></td>";
+          const items = r.byCategory.get(cat);
+          if (!items) return "<td></td>";
+          return `<td>${sortItemsForDay(items).map((it) => printItemLine(it)).join("<br>")}</td>`;
+        })
+        .join("");
+      return `<tr><th class="printWeekRowLabel">${escapeHtml(label)}</th>${cells}</tr>`;
+    })
     .join("");
+
+  loading.outerHTML = `
+    <table class="printWeekTable">
+      <thead>${headerRow}</thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+  `;
 
   window.print();
 }

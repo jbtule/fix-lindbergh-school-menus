@@ -39,10 +39,11 @@ could stop working at any time.
   Vegan, struck through when *absent* - that flags matching items and
   turns their allergen box red
 - A small **print** icon next to each menu's heading, printing that menu
-  one at a time as either a week (full detail, skipping any category
-  you've collapsed on screen) or a compact whole-month calendar (entree
-  names only) - hidden when running as a home-screen app, since standalone
-  mode can't open a print dialog
+  one at a time as a clean category-by-day table - full detail (entrees,
+  sides, allergens), skipping any category you've collapsed on screen -
+  or a compact whole-month calendar (entree names only). Hidden when
+  running as a home-screen app, since standalone mode can't open a print
+  dialog
 - Installable to a phone's home screen (manifest + icons), and
   auto-reloads itself when a new version is deployed
 - Optional Google Translate widget, matching the language list seen on
