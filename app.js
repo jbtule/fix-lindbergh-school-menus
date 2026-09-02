@@ -1124,13 +1124,18 @@ async function computeDayItemsForPrint(info, date) {
   return { byCategory, grade };
 }
 
-// Tried making print honor an active Google Translate selection (re-
-// trigger the widget's hidden language <select>, wait for the print
-// content to settle, then print) - dropped after it didn't survive real-
-// device testing: no reliable way to detect from here whether Google's
-// widget actually finished re-translating freshly-built content, and no
-// documented API to ask it directly. Print is English-only regardless of
-// the page's translation.
+// Tried making print honor an active Google Translate selection, three
+// different ways: re-trigger the widget's hidden language <select> to
+// force a reprocess and wait silently; wait passively (no retrigger) on
+// the theory the widget keeps watching the page on its own; and, on the
+// theory display:none content gets skipped, keep #printArea in the
+// render tree (positioned off-screen) instead of hidden while waiting.
+// All three were tested for real, on a phone with translation genuinely
+// active - none of them ever caught the widget touching freshly-built
+// print content, timing out with zero mutations seen every time. Whatever
+// mechanism (if any) the widget has for catching up with new content
+// added well after its initial pass, there's no way found here to hook
+// into it. Print is English-only regardless of the page's translation.
 
 // Marks the window.print() calls in printWeek()/printMonth() as button-
 // driven so the beforeprint listener further down can tell them apart
@@ -1152,6 +1157,69 @@ function printNow() {
   window.print();
 }
 
+// Third attempt at honoring an active Google Translate selection when
+// printing. The first two (re-trigger the widget's hidden language
+// <select> and wait silently; wait passively with #printArea positioned
+// off-screen instead of display:none) both timed out with zero mutations
+// ever seen, tested for real on a phone with translation active. This one
+// makes #printArea genuinely on-screen - not hidden, not off-screen, a
+// real full-viewport overlay - from before any content is even injected
+// into it, on the theory the widget might only act on content that looks
+// like regular, visible page content from the moment it exists. Only ever
+// engaged when a translation is actually active - untranslated printing
+// is unaffected, no visible flash, no delay.
+function isTranslationActive() {
+  return (
+    document.documentElement.classList.contains("translated-ltr") ||
+    document.documentElement.classList.contains("translated-rtl")
+  );
+}
+
+const TRANSLATION_SETTLE_DELAY = 300;
+// Generous on purpose while this is still being tested for real - the
+// whole page is covered by the visible print preview for as long as this
+// runs, so it's worth tuning down once it's clear whether this approach
+// works at all.
+const TRANSLATION_MAX_WAIT = 8000;
+
+function waitForTranslation(el) {
+  const start = performance.now();
+  let mutationCount = 0;
+  return new Promise((resolve) => {
+    let settleTimer = null;
+    const maxTimer = setTimeout(() => finish("timed out"), TRANSLATION_MAX_WAIT);
+    const observer = new MutationObserver((records) => {
+      mutationCount += records.length;
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => finish("settled after mutation"), TRANSLATION_SETTLE_DELAY);
+    });
+    function finish(reason) {
+      clearTimeout(settleTimer);
+      clearTimeout(maxTimer);
+      observer.disconnect();
+      console.log(
+        `[print translate wait] ${reason} after ${Math.round(performance.now() - start)}ms, ${mutationCount} mutation record(s) seen`
+      );
+      resolve();
+    }
+    observer.observe(el, { childList: true, subtree: true, characterData: true });
+  });
+}
+
+// Shows the "Preparing translated print..." banner and waits - only ever
+// called when isTranslationActive() is already true, so no check needed
+// here; the caller (printWeek()/printMonth()) is what decides whether any
+// of this engages at all.
+async function prepareForPrint(area) {
+  const banner = document.getElementById("printPreparingBanner");
+  banner.hidden = false;
+  try {
+    await waitForTranslation(area);
+  } finally {
+    banner.hidden = true;
+  }
+}
+
 // Clean, table-shaped week print - a plain category-by-day grid, easy to
 // scan at a glance and free of anything that only makes sense as a
 // clickable on-screen control. Categories collapsed on screen (see
@@ -1160,6 +1228,11 @@ function printNow() {
 async function printWeek(group) {
   const dates = weekDatesFor(state.currentDate);
   const area = document.getElementById("printArea");
+  const translated = isTranslationActive();
+
+  // Genuinely visible on screen from before any content lands in it, not
+  // just for the wait afterward - see the comment above isTranslationActive().
+  if (translated) area.classList.add("printPreviewing");
 
   area.innerHTML = `
     <section class="printMenuSection">
@@ -1224,7 +1297,9 @@ async function printWeek(group) {
     </table>
   `;
 
+  if (translated) await prepareForPrint(area);
   printNow();
+  area.classList.remove("printPreviewing");
 }
 
 // Compact whole-month calendar, entree names only, for one menu - see
@@ -1238,6 +1313,9 @@ async function printMonth(group) {
     .map((n) => `<th>${n}</th>`)
     .join("")}</tr>`;
   const area = document.getElementById("printArea");
+  const translated = isTranslationActive();
+
+  if (translated) area.classList.add("printPreviewing");
 
   area.innerHTML = `
     <section class="printMenuSection">
@@ -1269,7 +1347,9 @@ async function printMonth(group) {
     </table>
   `;
 
+  if (translated) await prepareForPrint(area);
   printNow();
+  area.classList.remove("printPreviewing");
 }
 
 // The API sends allergen_* flags as "1"/null rather than real booleans.

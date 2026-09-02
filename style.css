@@ -797,6 +797,58 @@ body:not(.week-view) .menuSection {
   display: none;
 }
 
+/* Genuinely on-screen (not just in the render tree, not off-screen) for
+   as long as printWeek()/printMonth() (app.js) have it flagged this way -
+   only while actively testing whether that makes any difference to
+   whether Google's Website Translator picks up freshly-built print
+   content. Higher specificity than the bare #printArea rule above, so it
+   wins while the class is present. */
+#printArea.printPreviewing {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: var(--bg);
+  color: var(--fg);
+  overflow: auto;
+  padding: 3.5rem 1rem 1rem;
+}
+
+.printPreparingBanner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.6rem 1rem;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 0.9rem;
+}
+
+.printPreparingBanner[hidden] {
+  display: none;
+}
+
+.printSpinner {
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: printSpin 0.8s linear infinite;
+}
+
+@keyframes printSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media print {
   /* Force the light palette regardless of the OS/browser's color scheme -
      paper is white no matter what, and the site's dark-mode variables

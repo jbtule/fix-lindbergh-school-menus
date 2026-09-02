@@ -48,8 +48,10 @@ could stop working at any time.
   auto-reloads itself when a new version is deployed
 - Optional Google Translate widget, matching the language list seen on
   the district's own site - a one-line flip (`TRANSLATE_WIDGET_ENABLED`
-  in `app.js`) to remove entirely (printing is always in English,
-  regardless of the page's translation)
+  in `app.js`) to remove entirely. Printing gives an active translation a
+  real chance to apply to the print content before printing (a brief
+  on-screen "Preparing translated print..." moment), rather than always
+  printing in English
 
 ## How it works
 

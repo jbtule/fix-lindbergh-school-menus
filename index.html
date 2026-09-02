@@ -24,7 +24,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Unofficial Menus" />
   <meta name="theme-color" content="#2f6f4f" />
-  <link rel="stylesheet" href="style.css?v=c4fbaa27" />
+  <link rel="stylesheet" href="style.css?v=1f3900c1" />
 </head>
 <body>
   <header class="topbar">
@@ -96,16 +96,12 @@
   <!-- Anchored under whichever menu section's print icon was tapped (see
        openPrintPopover() in app.js) rather than one per section, since
        only one can ever be open at a time. -->
-  <!-- notranslate on both buttons - printing is always in English (see
-       app.js), regardless of the page's translation, so their labels
-       stay in English too as a clue rather than promising a translation
-       the print output can't actually keep. -->
   <div id="printPopover" class="printPopover" hidden>
-    <button id="printPopoverWeek" class="printPopoverBtn notranslate">
+    <button id="printPopoverWeek" class="printPopoverBtn">
       Print this week
       <span class="printPopoverHint">Full detail - entrees, sides, allergens</span>
     </button>
-    <button id="printPopoverMonth" class="printPopoverBtn notranslate">
+    <button id="printPopoverMonth" class="printPopoverBtn">
       Print this month
       <span class="printPopoverHint">Entree names only, whole month</span>
     </button>
@@ -145,9 +141,18 @@
     No menus selected yet. Tap <strong>Menus</strong> above to choose which schools and meals to show.
   </p>
 
-  <!-- Populated on demand by printWeek()/printMonth() (app.js), shown only
-       for the duration of window.print() - see .printArea in style.css. -->
+  <!-- Populated on demand by printWeek()/printMonth() (app.js). Normally
+       shown only for the duration of window.print() (see #printArea in
+       style.css) - but genuinely visible on screen, via .printPreviewing,
+       while an active translation is (maybe) being given a chance to
+       translate it first - see isTranslationActive() in app.js. -->
   <div id="printArea"></div>
+
+  <!-- Pinned to the top of #printArea while it's visible that way. -->
+  <div id="printPreparingBanner" class="printPreparingBanner" hidden>
+    <div class="printSpinner" aria-hidden="true"></div>
+    <span>Preparing translated print&hellip;</span>
+  </div>
 
   <footer class="siteFooter">
     <a href="https://github.com/jbtule/fix-lindbergh-school-menus/commit/{{ site.github.build_revision }}" target="_blank" rel="noopener">
@@ -158,8 +163,8 @@
     </a>
   </footer>
 
-  <script src="version.js?v=a2551697"></script>
+  <script src="version.js?v=576923ec"></script>
   <script src="config.js?v=d42169e2"></script>
-  <script src="app.js?v=74e46541"></script>
+  <script src="app.js?v=7c7ab8ad"></script>
 </body>
 </html>
