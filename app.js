@@ -1060,36 +1060,15 @@ function buildMonthGrid(date) {
 // { text } when there's something to show, or { note } for a short
 // explanation (not scheduled that weekday, nothing published yet, etc.)
 // so the caller can render a muted line instead of a blank-looking cell.
-async function computeMonthEntreeText(info, date) {
-  const weekday = date.getDay();
-  if (!info.hasFullWeek && !info.specificDays.has(weekday)) {
-    return { note: "Not scheduled" };
-  }
+async function computeMonthEntrees(info, date) {
+  const result = await fetchDayItems(info, date);
+  if (result.kind === "notScheduled") return { note: "Not scheduled" };
+  if (result.kind === "error") return { note: "Couldn't load" };
+  if (result.kind === "empty") return { note: "No menu yet" };
 
-  let docId;
-  try {
-    docId = await fetchDocIdForDate(info.apiId, date);
-  } catch (e) {
-    return { note: "Couldn't load" };
-  }
-  if (!docId) return { note: "No menu yet" };
-
-  let items;
-  try {
-    items = await fetchMenuItems(docId);
-  } catch (e) {
-    return { note: "Couldn't load" };
-  }
-
-  const entrees = items.filter(
-    (it) =>
-      it.day === date.getDate() &&
-      it.product &&
-      it.product.category === "Entrees" &&
-      !isHiddenFromWebView(it.product)
-  );
+  const entrees = result.items.filter((it) => it.product.category === "Entrees");
   if (entrees.length === 0) return { note: "No menu yet" };
-  return { text: sortItemsForDay(entrees).map((it) => it.product.name).join(" / ") };
+  return { items: sortItemsForDay(entrees) };
 }
 
 // Full detail (entrees, sides, allergens) for one menu's current Mon-Fri
@@ -1109,9 +1088,16 @@ function printItemLine(it) {
   const icons = ALLERGEN_DEFS.filter(
     (def) => !def.positive && isAllergenFlagged(it.product[def.field])
   ).map((def) => def.icon || def.label);
-  const iconsHtml = icons.length ? ` <span class="printItemIcons">${icons.join(" ")}</span>` : "";
+  // Still labeled "Allergens" (the on-screen box's own label - see
+  // renderAllergenWarnings()), just as plain text after the icons rather
+  // than inside a bordered/colored box.
+  const allergensHtml = icons.length
+    ? ` <span class="printItemAllergens"><span class="printAllergenLabel">Allergens:</span> ${icons.join(" ")}</span>`
+    : "";
+  // Strikethrough rather than color, so an excluded item still reads on a
+  // black-and-white printer, not just a color one.
   const nameCls = isExcluded ? "printItemName printItemName-excluded" : "printItemName";
-  return `<span class="${nameCls}">${escapeHtml(it.product.name)}</span>${positiveHtml}${iconsHtml}`;
+  return `<li><span class="${nameCls}">${escapeHtml(it.product.name)}</span>${positiveHtml}${allergensHtml}</li>`;
 }
 
 // Same fetchDayItems() result as the on-screen view, but grouped by raw
@@ -1196,7 +1182,7 @@ async function printWeek(group) {
           if (r.note) return cat === "Entrees" ? `<td class="printWeekNote">${escapeHtml(r.note)}</td>` : "<td></td>";
           const items = r.byCategory.get(cat);
           if (!items) return "<td></td>";
-          return `<td>${sortItemsForDay(items).map((it) => printItemLine(it)).join("<br>")}</td>`;
+          return `<td><ul class="printItemList">${sortItemsForDay(items).map((it) => printItemLine(it)).join("")}</ul></td>`;
         })
         .join("");
       return `<tr><th class="printWeekRowLabel">${escapeHtml(label)}</th>${cells}</tr>`;
@@ -1214,7 +1200,7 @@ async function printWeek(group) {
 }
 
 // Compact whole-month calendar, entree names only, for one menu - see
-// computeMonthEntreeText() for why it's entree-only rather than reusing
+// computeMonthEntrees() for why it's entree-only rather than reusing
 // computeDayHtml() the way printWeek() does. Printed one menu at a time -
 // see the per-section print icon in renderSections().
 async function printMonth(group) {
@@ -1238,9 +1224,9 @@ async function printMonth(group) {
       const cells = await Promise.all(
         row.map(async (d) => {
           if (!d) return "<td></td>";
-          const result = await computeMonthEntreeText(group, d);
-          const body = result.text
-            ? escapeHtml(result.text)
+          const result = await computeMonthEntrees(group, d);
+          const body = result.items
+            ? `<ul class="printItemList">${result.items.map((it) => `<li>${escapeHtml(it.product.name)}</li>`).join("")}</ul>`
             : `<span class="printMonthNote">${escapeHtml(result.note)}</span>`;
           return `<td><span class="printMonthDate">${d.getDate()}</span>${body}</td>`;
         })

@@ -836,7 +836,7 @@ body:not(.week-view) .menuSection {
   }
 
   .printMonthTable td {
-    height: 3.4em;
+    min-height: 3.4em;
   }
 
   .printMonthDate {
@@ -866,15 +866,32 @@ body:not(.week-view) .menuSection {
     color: var(--muted);
   }
 
-  /* Same idea as .itemName-excluded on screen - a dietary match still
-     needs to stand out, just without the bordered/colored box that'd
-     look like an interactive alert here. */
+  /* Strikethrough rather than the on-screen .itemName-excluded's color -
+     a black-and-white printer can't show red, but it can show a line
+     through text. */
   .printItemName-excluded {
-    color: var(--danger-label);
+    text-decoration: line-through;
     font-weight: 600;
   }
 
-  .printItemIcons {
+  .printItemList {
+    margin: 0;
+    padding-left: 1.1em;
+  }
+
+  .printItemList li:not(:last-child) {
+    margin-bottom: 0.3rem;
+  }
+
+  /* Still labeled "Allergens" like the on-screen box (see
+     renderAllergenWarnings()), just plain text instead of a bordered/
+     colored chip row. */
+  .printItemAllergens {
+    display: block;
     font-size: 0.85em;
+  }
+
+  .printAllergenLabel {
+    color: var(--muted);
   }
 }
