@@ -1124,69 +1124,13 @@ async function computeDayItemsForPrint(info, date) {
   return { byCategory, grade };
 }
 
-// Best-effort: gives Google's Website Translator (see loadTranslateWidget()
-// above) a chance to translate print content built *after* its initial
-// pass over the page - it has no real "translate this and tell me when
-// done" API, so this leans on two behaviors observed from the widget
-// rather than anything documented: <html> gets a translated-ltr/-rtl
-// class once a language is active, and re-firing the hidden
-// <select class="goog-te-combo"> it injects forces a fresh pass over the
-// whole page. Resolves once `el`'s subtree stops changing (the
-// translation rewriting text nodes into it), or after TRANSLATION_MAX_WAIT
-// regardless, so a stuck or unavailable translation never blocks printing
-// outright. A no-op (resolves immediately, no delay) when no translation
-// is active - only translated users pay for this.
-const TRANSLATION_SETTLE_DELAY = 300;
-const TRANSLATION_MAX_WAIT = 2500;
-// How long to sit on the deselected value before switching back - see the
-// toggle comment below.
-const TRANSLATION_TOGGLE_DELAY = 80;
-
-function waitForTranslation(el) {
-  const translated =
-    document.documentElement.classList.contains("translated-ltr") ||
-    document.documentElement.classList.contains("translated-rtl");
-  if (!translated) return Promise.resolve();
-
-  const combo = document.querySelector(".goog-te-combo");
-
-  return new Promise((resolve) => {
-    let settleTimer = null;
-    const maxTimer = setTimeout(finish, TRANSLATION_MAX_WAIT);
-    const observer = new MutationObserver(() => {
-      clearTimeout(settleTimer);
-      settleTimer = setTimeout(finish, TRANSLATION_SETTLE_DELAY);
-    });
-    function finish() {
-      clearTimeout(settleTimer);
-      clearTimeout(maxTimer);
-      observer.disconnect();
-      resolve();
-    }
-    observer.observe(el, { childList: true, subtree: true, characterData: true });
-    // Nothing may ever mutate (already translated, or translation just
-    // isn't available for this content) - still resolve after the settle
-    // delay even with zero mutations observed.
-    settleTimer = setTimeout(finish, TRANSLATION_SETTLE_DELAY);
-
-    if (combo && combo.value) {
-      // Firing `change` with the value left unchanged looks like a no-op
-      // to Google's own handler - it appears to compare against the value
-      // it already has and skip re-processing new content. Switching away
-      // to the deselected/original-language value and back forces an
-      // actual transition, the same as if someone had switched languages
-      // and switched right back - flickers the whole page briefly, but
-      // only while a translation is active.
-      const target = combo.value;
-      combo.value = "";
-      combo.dispatchEvent(new Event("change"));
-      setTimeout(() => {
-        combo.value = target;
-        combo.dispatchEvent(new Event("change"));
-      }, TRANSLATION_TOGGLE_DELAY);
-    }
-  });
-}
+// Tried making print honor an active Google Translate selection (re-
+// trigger the widget's hidden language <select>, wait for the print
+// content to settle, then print) - dropped after it didn't survive real-
+// device testing: no reliable way to detect from here whether Google's
+// widget actually finished re-translating freshly-built content, and no
+// documented API to ask it directly. Print is English-only regardless of
+// the page's translation.
 
 // Clean, table-shaped week print - a plain category-by-day grid, easy to
 // scan at a glance and free of anything that only makes sense as a
@@ -1260,7 +1204,6 @@ async function printWeek(group) {
     </table>
   `;
 
-  await waitForTranslation(area);
   window.print();
 }
 
@@ -1306,7 +1249,6 @@ async function printMonth(group) {
     </table>
   `;
 
-  await waitForTranslation(area);
   window.print();
 }
 

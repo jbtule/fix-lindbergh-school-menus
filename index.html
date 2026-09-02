@@ -93,12 +93,16 @@
   <!-- Anchored under whichever menu section's print icon was tapped (see
        openPrintPopover() in app.js) rather than one per section, since
        only one can ever be open at a time. -->
+  <!-- notranslate on both buttons - printing is always in English (see
+       app.js), regardless of the page's translation, so their labels
+       stay in English too as a clue rather than promising a translation
+       the print output can't actually keep. -->
   <div id="printPopover" class="printPopover" hidden>
-    <button id="printPopoverWeek" class="printPopoverBtn">
+    <button id="printPopoverWeek" class="printPopoverBtn notranslate">
       Print this week
       <span class="printPopoverHint">Full detail - entrees, sides, allergens</span>
     </button>
-    <button id="printPopoverMonth" class="printPopoverBtn">
+    <button id="printPopoverMonth" class="printPopoverBtn notranslate">
       Print this month
       <span class="printPopoverHint">Entree names only, whole month</span>
     </button>
@@ -151,8 +155,8 @@
     </a>
   </footer>
 
-  <script src="version.js?v=dbda6dad"></script>
+  <script src="version.js?v=52a8efee"></script>
   <script src="config.js?v=d42169e2"></script>
-  <script src="app.js?v=8f1d9fad"></script>
+  <script src="app.js?v=4c8372b7"></script>
 </body>
 </html>
