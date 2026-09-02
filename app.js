@@ -1547,6 +1547,28 @@ updateBodyViewModeClass();
 renderSections();
 loadTranslateWidget();
 
+// Keeps --topbar-height (see .dayNav in style.css, which sticks right
+// below .topbar) in sync with its actual rendered height, since that
+// height isn't fixed - the title wraps to two lines on narrow screens or
+// with larger text settings.
+function setTopbarHeightVar(height) {
+  document.documentElement.style.setProperty("--topbar-height", `${height}px`);
+}
+const topbarEl = document.querySelector(".topbar");
+// Set once synchronously up front - ResizeObserver's own first callback
+// isn't guaranteed to land before the very first paint, which would
+// otherwise leave .dayNav sitting under the CSS fallback value (a rough
+// estimate) just long enough to overlap the title bar.
+setTopbarHeightVar(topbarEl.getBoundingClientRect().height);
+// Catches every subsequent change regardless of what caused it (viewport
+// resize, text zoom, font load), not just the window "resize" event.
+new ResizeObserver((entries) => {
+  const height = entries[0].borderBoxSize
+    ? entries[0].borderBoxSize[0].blockSize
+    : entries[0].contentRect.height;
+  setTopbarHeightVar(height);
+}).observe(topbarEl);
+
 // See REOPEN_TRANSLATE_PANEL_KEY - only ever set right before the
 // reload the "Show full language list" checkbox triggers, and cleared
 // immediately here so it doesn't reopen the panel on any later, normal

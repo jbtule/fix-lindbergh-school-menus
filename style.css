@@ -304,6 +304,11 @@ body {
   color: var(--accent);
 }
 
+/* Sticks right under .topbar - --topbar-height is kept in sync with its
+   actual rendered height by a ResizeObserver in app.js, since that height
+   isn't fixed (the title wraps to two lines on narrow screens/large text
+   settings). The 3.2rem fallback only matters for the flash before that
+   observer runs once on load. */
 .dayNav {
   display: flex;
   align-items: center;
@@ -311,6 +316,11 @@ body {
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   flex-wrap: wrap;
+  position: sticky;
+  top: var(--topbar-height, 3.2rem);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  z-index: 9;
 }
 
 .dayLabel {
