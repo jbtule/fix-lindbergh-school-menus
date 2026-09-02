@@ -1135,14 +1135,21 @@ async function computeDayItemsForPrint(info, date) {
 // Marks the window.print() calls in printWeek()/printMonth() as button-
 // driven so the beforeprint listener further down can tell them apart
 // from a native Ctrl+P/Cmd+P/Share>Print - see that listener for why.
+// Cleared on afterprint rather than right after window.print() returns:
+// window.print() blocks until the dialog closes on desktop, but iOS
+// Safari's is non-blocking - it returns immediately and shows the print
+// UI asynchronously, so resetting the flag right after the call (in a
+// finally, say) cleared it before the real print moment on iOS, and
+// beforeprint ended up seeing it already false and overwriting the
+// button's own content with the native-print fallback note instead.
+// afterprint fires once the print UI actually closes either way.
 let printingViaButton = false;
+window.addEventListener("afterprint", () => {
+  printingViaButton = false;
+});
 function printNow() {
   printingViaButton = true;
-  try {
-    window.print();
-  } finally {
-    printingViaButton = false;
-  }
+  window.print();
 }
 
 // Clean, table-shaped week print - a plain category-by-day grid, easy to
