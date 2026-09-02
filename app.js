@@ -192,6 +192,10 @@ async function fetchMenuItems(docId) {
         product {
           name
           category
+          # Only used by stationBoundaryHint() in station-boundaries.js.
+          # Safe to drop along with that file - nothing else reads them.
+          providerProductID
+          product_fullname
           hide_on_web_menu_view
           hide_on_calendars
           allergen_dairy
@@ -409,6 +413,31 @@ function openPrintPopover(anchor, group) {
 function closePrintPopover() {
   document.getElementById("printPopover").hidden = true;
   printPopoverGroup = null;
+}
+
+// Same single-shared-instance approach as the print popover above: one
+// element repositioned under whichever (i) was tapped.
+let stationInfoAnchor = null;
+
+function openStationInfo(anchor) {
+  const popover = document.getElementById("stationInfoPopover");
+  stationInfoAnchor = anchor;
+  popover.hidden = false;
+  const rect = anchor.getBoundingClientRect();
+  popover.style.top = `${rect.bottom + window.scrollY + 4}px`;
+  // Prefer left-aligned under the (i), but pull it back inside the viewport
+  // when that would overflow the right edge - these buttons sit well into
+  // the page, so on a phone the natural position is usually off-screen.
+  // clientWidth, not innerWidth: it excludes a classic scrollbar.
+  const viewport = document.documentElement.clientWidth;
+  const width = popover.offsetWidth;
+  const left = Math.min(rect.left + window.scrollX, window.scrollX + viewport - width - 8);
+  popover.style.left = `${Math.max(left, window.scrollX + 8)}px`;
+}
+
+function closeStationInfo() {
+  document.getElementById("stationInfoPopover").hidden = true;
+  stationInfoAnchor = null;
 }
 
 // ---------- Disclaimer ----------
@@ -673,7 +702,7 @@ function sortItemsForDay(items) {
 // renderOneMenu. With no Shared Items marker (every other menu, since
 // they never interleave sides between entrees), this collapses to a
 // single group holding all the sides, identical to the old flat layout.
-function groupEntreeRuns(dayItemsInOrder) {
+function groupEntreeRuns(dayItemsInOrder, menuGroup) {
   const sentinelIndex = dayItemsInOrder.findIndex(
     (it) => it.product.category === "Ancillary" && it.product.name.trim() === "Shared Items"
   );
@@ -682,15 +711,38 @@ function groupEntreeRuns(dayItemsInOrder) {
 
   const groups = [];
   let current = null;
+  // Tracked for the boundary hints below: the previous Entrees item, and
+  // whether any sides sat between it and the item now being placed. Not the
+  // same as current.sides.length - that keeps accumulating across a group,
+  // this resets at every entree.
+  let prevEntree = null;
+  let sidesSincePrevEntree = 0;
   for (const it of stationItems) {
     if (it.product.category === "Entrees") {
-      if (!current || current.sides.length > 0) {
+      // --- station-boundaries.js hook (optional) -----------------------
+      // Ask the frozen lookup tables whether these two adjacent entrees are
+      // actually in different stations. Returns null when it has no opinion,
+      // which is the common case, and then the original ordering rule below
+      // decides exactly as it always did. Delete this block (and keep the
+      // `startNew` line as `!current || current.sides.length > 0`) to remove
+      // the feature entirely.
+      const hint =
+        typeof stationBoundaryHint === "function" && prevEntree
+          ? stationBoundaryHint(menuGroup, prevEntree.product, it.product, sidesSincePrevEntree > 0)
+          : null;
+      // -----------------------------------------------------------------
+      const startNew =
+        !current || (hint === null ? current.sides.length > 0 : hint);
+      if (startNew) {
         current = { entrees: [], sides: [] };
         groups.push(current);
       }
       current.entrees.push(it);
+      prevEntree = it;
+      sidesSincePrevEntree = 0;
     } else if (current) {
       current.sides.push(it);
+      sidesSincePrevEntree++;
     }
   }
   return { groups, commonSides };
@@ -744,6 +796,7 @@ async function renderSections() {
   const emptyState = document.getElementById("emptyState");
   const pickerToggle = document.getElementById("pickerToggle");
   closePrintPopover(); // its anchor is about to be torn down either way
+  closeStationInfo(); // ditto - the (i) buttons are about to be replaced
 
   if (state.selectedIds.length === 0) {
     container.innerHTML = "";
@@ -937,7 +990,7 @@ async function computeDayHtml(info, date) {
   // being a no-op everywhere else.
   const { groups: entreeGroups, commonSides } =
     info.group === "High Schools"
-      ? groupEntreeRuns(dayItems)
+      ? groupEntreeRuns(dayItems, info.group)
       : {
           // Every other menu: exactly what it's always been - one group
           // holding all the entrees, its sides right below it, nothing
@@ -955,13 +1008,36 @@ async function computeDayHtml(info, date) {
   // everyone else's - see groupEntreeRuns(). Only truly shared items
   // (after the "Shared Items" marker, or the whole day when there's no
   // station split at all) land in the common section at the bottom.
+  // --- station-boundaries.js hook (optional) --------------------------
+  // Names whichever boxes it can identify with certainty; every entry is
+  // null when the feature is off or the file is absent, which leaves the
+  // generic "Entree" label below untouched. Delete these four lines and
+  // the `label` expression to remove naming.
+  //
+  // info.group is passed so station-boundaries.js can enforce its own
+  // high-school-only scope - see STATION_MENU_GROUP there.
+  const stationNames =
+    typeof stationNamesFor === "function"
+      ? stationNamesFor(info.group, entreeGroups)
+      : entreeGroups.map(() => null);
+  // --------------------------------------------------------------------
   const choicesHtml = entreeGroups
-    .map((group) => {
+    .map((group, groupIndex) => {
       const entrees = sortItemsForDay(group.entrees);
       const sides = sortItemsForDay(group.sides);
+      // A named box gets an (i) explaining that the name is inferred; an
+      // unnamed one keeps the plain "Entree" label with nothing to explain.
+      const stationName = stationNames[groupIndex];
+      const label = stationName || "Entree";
+      const infoBtn = stationName
+        ? `<button type="button" class="stationInfo" aria-label="About station names">i</button>`
+        : "";
       return `
         <div class="choiceGroup">
-          <div class="choiceLabel">Entree</div>
+          <div class="choiceLabelRow">
+            <div class="choiceLabel">${escapeHtml(label)}</div>
+            ${infoBtn}
+          </div>
           <ul class="choiceList">
             ${entrees.map((it) => `<li>${renderItemLine(it)}</li>`).join("")}
           </ul>
@@ -1512,6 +1588,22 @@ document.addEventListener("click", (e) => {
   closePrintPopover();
 });
 window.addEventListener("scroll", closePrintPopover, { passive: true, capture: true });
+
+// Delegated: the (i) buttons are re-created on every render.
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".stationInfo");
+  if (btn) {
+    const wasOpen =
+      !document.getElementById("stationInfoPopover").hidden && stationInfoAnchor === btn;
+    closeStationInfo();
+    if (!wasOpen) openStationInfo(btn);
+    return;
+  }
+  if (document.getElementById("stationInfoPopover").hidden) return;
+  if (e.target.closest("#stationInfoPopover")) return;
+  closeStationInfo();
+});
+window.addEventListener("scroll", closeStationInfo, { passive: true, capture: true });
 // The print CSS hides everything except #printArea, which is only ever
 // filled by printWeek()/printMonth() - so a native Ctrl+P/Cmd+P (or
 // iOS's Share > Print) without ever tapping a menu's own Print button

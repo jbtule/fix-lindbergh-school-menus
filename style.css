@@ -627,6 +627,77 @@ body:not(.week-view) .menuSection {
   margin-bottom: 0.3rem;
 }
 
+/* The (i) beside an inferred station name - see stationNamesFor() in
+   station-boundaries.js. Sized to sit on the label's baseline without
+   stretching the row. */
+.choiceLabelRow {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.3rem;
+  /* The label can wrap on a narrow screen; keep the (i) on the label's
+     first line rather than letting it drop below. */
+  flex-wrap: nowrap;
+}
+
+.choiceLabelRow .choiceLabel {
+  margin-bottom: 0;
+}
+
+.stationInfo {
+  flex: 0 0 auto;
+  width: 0.95rem;
+  height: 0.95rem;
+  padding: 0;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stationInfo:hover,
+.stationInfo:focus-visible {
+  color: var(--accent);
+}
+
+.stationInfoPopover {
+  display: block;
+  /* .printPopover sets min-width: 220px, which alone overflows a narrow
+     phone once padding and the 8px edge gap are added. Clamp to the
+     viewport so openStationInfo()'s left-edge math has something that
+     actually fits to work with. */
+  min-width: 0;
+  width: max-content;
+  max-width: min(17rem, calc(100vw - 1.5rem));
+  padding: 0.55rem 0.65rem;
+}
+
+.stationInfoTitle {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--fg);
+}
+
+.stationInfoBody {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.stationInfoBody:last-child {
+  margin-bottom: 0;
+}
+
 .choiceList {
   margin: 0;
   padding: 0;
@@ -852,6 +923,12 @@ body:not(.week-view) .menuSection {
 }
 
 @media print {
+  /* Interactive-only affordance; the name still prints, just without the
+     button that opens its explanation. */
+  .stationInfo {
+    display: none !important;
+  }
+
   /* Force the light palette regardless of the OS/browser's color scheme -
      paper is white no matter what, and the site's dark-mode variables
      would otherwise leave print output using light text on a background

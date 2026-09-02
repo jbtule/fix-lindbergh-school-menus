@@ -18,14 +18,14 @@
 //      { depth_0_id: "32105" } alone.)
 
 // ---------------------------------------------------------------------
-// High school lunch "stations" - researched but NOT used (see below).
+// High school lunch "stations" - now partly implemented, see
+// station-boundaries.js.
 //
-// Lindbergh High lunch is actually served from several named food
-// stations (like a food court), confirmed via the district's OTHER menu
-// site, Nutrislice (lindberghschools.nutrislice.com - being phased out
-// in favor of schoolnutritionandfitness.com, hence this project). Full
-// month PDFs exported from Nutrislice gave a fixed, ordered roster per
-// month:
+// Lindbergh High lunch is served from several named food stations (like a
+// food court), confirmed via the district's OTHER menu site, Nutrislice
+// (lindberghschools.nutrislice.com - since shut down in favor of
+// schoolnutritionandfitness.com, hence this project). Full month PDFs
+// exported from Nutrislice gave a fixed, ordered roster per month:
 //
 //   August 2026 (10 stations): Ballpark Classics, Bento Box, Build Your
 //   Own Classic Stacks, Classic Stacks, Luigi's Eatery, Panini Station,
@@ -36,25 +36,20 @@
 //   Eatery, Panini Station, Red Dragon, Taco Street, Traditional
 //   Cuisine, Wing'N It
 //
-// This looked like a strong lead for labeling groupEntreeRuns()'s output
-// (app.js) by name/position instead of a generic "Entree" label. It
-// isn't usable, though - checked every day in both months against the
-// schoolnutritionandfitness.com API data and NO day produced a clean
-// split matching that day's station count. Two independent problems,
-// both confirmed:
-//   1. Not every station runs every day (e.g. Wing'N It was absent from
-//      Sept 1's data entirely), so there's no single fixed "expected
-//      count" to check a day's group count against in the first place.
-//   2. Even among the stations that DO run, the data frequently drops
-//      the side item that would separate two adjacent stations, so
-//      groupEntreeRuns() merges them into one group (worst case: 4
-//      stations collapsed into 1 run on Aug 26, the very first day of
-//      school).
-// Position-based labeling would silently mislabel food on most days, so
-// it's not implemented. Revisit only if schoolnutritionandfitness.com's
-// data entry improves (a real per-item station field, or consistently
-// entered separators) - the station tag isn't exposed anywhere in the
-// GraphQL schema fields we've found so far.
+// Labeling groups by POSITION against that roster still doesn't work, for
+// the two reasons found originally: not every station runs every day (so
+// there's no fixed expected count to line groups up against), and the API
+// frequently drops the side item that would separate two adjacent
+// stations, so groupEntreeRuns() merges them.
+//
+// What does work is identifying stations by their CONTENT rather than
+// their position - a station-specific side (Red Dragon's fortune cookie)
+// or a product_fullname "concept". That, plus a lookup table of known
+// station boundaries, lives in station-boundaries.js; it is optional, can
+// be switched off there, and names roughly half the boxes while leaving
+// the rest labeled "Entree". Read that file's header before changing any
+// of this - in particular, its tables were derived from a September 2026
+// Nutrislice PDF and cannot be regenerated now that Nutrislice is gone.
 // ---------------------------------------------------------------------
 
 const DISTRICT_SID = "1786638906029";

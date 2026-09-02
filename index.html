@@ -24,7 +24,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Unofficial Menus" />
   <meta name="theme-color" content="#2f6f4f" />
-  <link rel="stylesheet" href="style.css?v=04d46262" />
+  <link rel="stylesheet" href="style.css?v=82c4d415" />
 </head>
 <body>
   <header class="topbar">
@@ -96,6 +96,18 @@
   <!-- Anchored under whichever menu section's print icon was tapped (see
        openPrintPopover() in app.js) rather than one per section, since
        only one can ever be open at a time. -->
+  <!-- One shared popover for the (i) beside an inferred station name, same
+       single-instance approach as #printPopover below - only one can be open
+       at a time. Shown only when station-boundaries.js names a box. -->
+  <div id="stationInfoPopover" class="printPopover stationInfoPopover" role="dialog"
+       aria-labelledby="stationInfoTitle" hidden>
+    <p id="stationInfoTitle" class="stationInfoTitle">About station names</p>
+    <p class="stationInfoBody">
+      A best guess. The menu data doesn't say which station serves an item, so
+      names come from the last menu that labelled them and may be out of date.
+    </p>
+  </div>
+
   <div id="printPopover" class="printPopover" hidden>
     <button id="printPopoverWeek" class="printPopoverBtn">
       Print this week
@@ -163,8 +175,11 @@
     </a>
   </footer>
 
-  <script src="version.js?v=b3d0d723"></script>
-  <script src="config.js?v=d42169e2"></script>
-  <script src="app.js?v=7c7ab8ad"></script>
+  <script src="version.js?v=0414c043"></script>
+  <script src="config.js?v=61810c4a"></script>
+  <!-- Optional: high-school station boundary hints. Safe to remove - see
+       the header comment in the file. -->
+  <script src="station-boundaries.js?v=3843218d"></script>
+  <script src="app.js?v=98a7ad39"></script>
 </body>
 </html>
