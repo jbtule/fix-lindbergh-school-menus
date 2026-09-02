@@ -125,6 +125,25 @@ body {
   cursor: pointer;
 }
 
+.pickerToggle.pulse {
+  animation: pickerPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pickerPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pickerToggle.pulse {
+    animation: none;
+  }
+}
+
 .badge {
   background: var(--accent);
   color: var(--accent-fg);

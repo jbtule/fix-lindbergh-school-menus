@@ -711,19 +711,23 @@ function renderSideGroups(sideItems) {
 async function renderSections() {
   const container = document.getElementById("sections");
   const emptyState = document.getElementById("emptyState");
+  const pickerToggle = document.getElementById("pickerToggle");
 
   if (state.selectedIds.length === 0) {
     container.innerHTML = "";
     emptyState.hidden = false;
+    pickerToggle.classList.add("pulse");
     return;
   }
   const groups = groupSelectedMenus(state.selectedIds);
   if (groups.length === 0) {
     container.innerHTML = "";
     emptyState.hidden = false;
+    pickerToggle.classList.add("pulse");
     return;
   }
   emptyState.hidden = true;
+  pickerToggle.classList.remove("pulse");
 
   container.innerHTML = "";
   const sectionEls = groups.map((group) => {
