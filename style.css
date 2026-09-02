@@ -345,8 +345,8 @@ body {
   background: var(--bg);
   color: var(--fg);
   border: none;
-  padding: 0.3rem 0.8rem;
-  font-size: 0.85rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
   cursor: pointer;
 }
 
@@ -403,9 +403,9 @@ body {
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--fg);
-  padding: 0.3rem 0.8rem;
+  padding: 0.2rem 0.6rem;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 main {
