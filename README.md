@@ -38,8 +38,11 @@ could stop working at any time.
   wheat, soy, sesame, each struck through when present, plus Vegetarian/
   Vegan, struck through when *absent* - that flags matching items and
   turns their allergen box red
-- **Print** a week (full detail) or a month (entree names only) for your
-  selected menus, skipping any category you've collapsed on screen
+- A small **print** icon next to each menu's heading, printing that menu
+  one at a time as either a week (full detail, skipping any category
+  you've collapsed on screen) or a compact whole-month calendar (entree
+  names only) - hidden when running as a home-screen app, since standalone
+  mode can't open a print dialog
 - Installable to a phone's home screen (manifest + icons), and
   auto-reloads itself when a new version is deployed
 - Optional Google Translate widget, matching the language list seen on

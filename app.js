@@ -380,12 +380,35 @@ function closeLanguagePicker() {
   setPanelOpen("languagePicker", "languagePickerScrim", "languageToggle", false);
 }
 
-function openPrintPicker() {
-  setPanelOpen("printPicker", "printPickerScrim", "printToggle", true);
+// Home-screen ("standalone") web apps strip out all browser chrome, and
+// window.print() has no print sheet left to attach to there - iOS in
+// particular just silently no-ops it rather than erroring. There's no way
+// to feature-detect that failure directly, so this heuristic (are we
+// running standalone at all?) decides whether the per-section print icon
+// even shows up - see renderSections().
+const CAN_PRINT = !(
+  window.matchMedia("(display-mode: standalone)").matches ||
+  window.navigator.standalone === true
+);
+
+// One shared popover (positioned under whichever section's print icon was
+// tapped) rather than one per menu section, since only one can ever be
+// open at a time - see the markup comment in index.html.
+let printPopoverGroup = null;
+
+function openPrintPopover(anchor, group) {
+  printPopoverGroup = group;
+  const popover = document.getElementById("printPopover");
+  popover.hidden = false;
+  const rect = anchor.getBoundingClientRect();
+  popover.style.top = `${rect.bottom + window.scrollY + 4}px`;
+  const left = Math.min(rect.left + window.scrollX, window.scrollX + window.innerWidth - popover.offsetWidth - 8);
+  popover.style.left = `${Math.max(left, window.scrollX + 8)}px`;
 }
 
-function closePrintPicker() {
-  setPanelOpen("printPicker", "printPickerScrim", "printToggle", false);
+function closePrintPopover() {
+  document.getElementById("printPopover").hidden = true;
+  printPopoverGroup = null;
 }
 
 // ---------- Disclaimer ----------
@@ -720,15 +743,12 @@ async function renderSections() {
   const container = document.getElementById("sections");
   const emptyState = document.getElementById("emptyState");
   const pickerToggle = document.getElementById("pickerToggle");
-  const printWeekBtn = document.getElementById("printWeekBtn");
-  const printMonthBtn = document.getElementById("printMonthBtn");
+  closePrintPopover(); // its anchor is about to be torn down either way
 
   if (state.selectedIds.length === 0) {
     container.innerHTML = "";
     emptyState.hidden = false;
     pickerToggle.classList.add("pulse");
-    printWeekBtn.disabled = true;
-    printMonthBtn.disabled = true;
     return;
   }
   const groups = groupSelectedMenus(state.selectedIds);
@@ -736,24 +756,34 @@ async function renderSections() {
     container.innerHTML = "";
     emptyState.hidden = false;
     pickerToggle.classList.add("pulse");
-    printWeekBtn.disabled = true;
-    printMonthBtn.disabled = true;
     return;
   }
   emptyState.hidden = true;
   pickerToggle.classList.remove("pulse");
-  printWeekBtn.disabled = false;
-  printMonthBtn.disabled = false;
 
   container.innerHTML = "";
   const sectionEls = groups.map((group) => {
     const section = document.createElement("section");
     section.className = "menuSection";
     section.innerHTML = `
-      <h2>${group.school} - ${group.name}</h2>
+      <h2>
+        ${group.school} - ${group.name}
+        ${CAN_PRINT ? `<button class="printSectionBtn" aria-label="Print this menu" title="Print this menu">🖨️</button>` : ""}
+      </h2>
       <div class="sectionBody"><p class="loading">Loading...</p></div>
     `;
     container.appendChild(section);
+    const printBtn = section.querySelector(".printSectionBtn");
+    if (printBtn) {
+      printBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!document.getElementById("printPopover").hidden && printPopoverGroup === group) {
+          closePrintPopover();
+        } else {
+          openPrintPopover(printBtn, group);
+        }
+      });
+    }
     return section.querySelector(".sectionBody");
   });
 
@@ -1044,53 +1074,43 @@ async function computeMonthEntreeText(info, date) {
   return { text: sortItemsForDay(entrees).map((it) => it.product.name).join(" / ") };
 }
 
-// Full detail (entrees, sides, allergens) for the current Mon-Fri week,
-// one section per selected menu - reuses computeDayHtml() directly, so a
-// category collapsed on screen (see .sideGroup.collapsed handling in the
-// print media query) comes out exactly as collapsed on paper.
-async function printWeek() {
-  const groups = groupSelectedMenus(state.selectedIds);
-  if (groups.length === 0) return;
+// Full detail (entrees, sides, allergens) for one menu's current Mon-Fri
+// week - reuses computeDayHtml() directly, so a category collapsed on
+// screen (see .sideGroup.collapsed handling in the print media query)
+// comes out exactly as collapsed on paper. Printed one menu at a time -
+// see the per-section print icon in renderSections().
+async function printWeek(group) {
   const dates = weekDatesFor(state.currentDate);
   const area = document.getElementById("printArea");
 
-  area.innerHTML = groups
+  area.innerHTML = `
+    <section class="printMenuSection">
+      <h2>${escapeHtml(group.school)} - ${escapeHtml(group.name)}</h2>
+      <div class="printWeekDays"><p class="loading">Loading...</p></div>
+    </section>
+  `;
+  const body = area.querySelector(".printWeekDays");
+
+  const dayHtmls = await Promise.all(dates.map((d) => computeDayHtml(group, d)));
+  body.innerHTML = dates
     .map(
-      (g) => `
-      <section class="printMenuSection">
-        <h2>${escapeHtml(g.school)} - ${escapeHtml(g.name)}</h2>
-        <div class="printWeekDays"><p class="loading">Loading...</p></div>
-      </section>
+      (d, j) => `
+      <div class="printDay">
+        <h3>${WEEKDAY_NAMES[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}</h3>
+        ${dayHtmls[j]}
+      </div>
     `
     )
     .join("");
-  const bodies = area.querySelectorAll(".printWeekDays");
-
-  await Promise.all(
-    groups.map(async (g, i) => {
-      const dayHtmls = await Promise.all(dates.map((d) => computeDayHtml(g, d)));
-      bodies[i].innerHTML = dates
-        .map(
-          (d, j) => `
-          <div class="printDay">
-            <h3>${WEEKDAY_NAMES[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}</h3>
-            ${dayHtmls[j]}
-          </div>
-        `
-        )
-        .join("");
-    })
-  );
 
   window.print();
 }
 
-// Compact whole-month calendar, entree names only, one table per selected
-// menu - see computeMonthEntreeText() for why it's entree-only rather than
-// reusing computeDayHtml() the way printWeek() does.
-async function printMonth() {
-  const groups = groupSelectedMenus(state.selectedIds);
-  if (groups.length === 0) return;
+// Compact whole-month calendar, entree names only, for one menu - see
+// computeMonthEntreeText() for why it's entree-only rather than reusing
+// computeDayHtml() the way printWeek() does. Printed one menu at a time -
+// see the per-section print icon in renderSections().
+async function printMonth(group) {
   const grid = buildMonthGrid(state.currentDate);
   const monthLabel = `${MONTH_NAMES[state.currentDate.getMonth()]} ${state.currentDate.getFullYear()}`;
   const headerRow = `<tr>${WEEKDAY_NAMES.slice(1, 6)
@@ -1098,43 +1118,35 @@ async function printMonth() {
     .join("")}</tr>`;
   const area = document.getElementById("printArea");
 
-  area.innerHTML = groups
-    .map(
-      (g) => `
-      <section class="printMenuSection">
-        <h2>${escapeHtml(g.school)} - ${escapeHtml(g.name)} - ${monthLabel}</h2>
-        <p class="loading">Loading...</p>
-      </section>
-    `
-    )
-    .join("");
-  const sections = area.querySelectorAll(".printMenuSection");
+  area.innerHTML = `
+    <section class="printMenuSection">
+      <h2>${escapeHtml(group.school)} - ${escapeHtml(group.name)} - ${monthLabel}</h2>
+      <p class="loading">Loading...</p>
+    </section>
+  `;
+  const loading = area.querySelector(".loading");
 
-  await Promise.all(
-    groups.map(async (g, i) => {
-      const rowsHtml = await Promise.all(
-        grid.map(async (row) => {
-          const cells = await Promise.all(
-            row.map(async (d) => {
-              if (!d) return "<td></td>";
-              const result = await computeMonthEntreeText(g, d);
-              const body = result.text
-                ? escapeHtml(result.text)
-                : `<span class="printMonthNote">${escapeHtml(result.note)}</span>`;
-              return `<td><span class="printMonthDate">${d.getDate()}</span>${body}</td>`;
-            })
-          );
-          return `<tr>${cells.join("")}</tr>`;
+  const rowsHtml = await Promise.all(
+    grid.map(async (row) => {
+      const cells = await Promise.all(
+        row.map(async (d) => {
+          if (!d) return "<td></td>";
+          const result = await computeMonthEntreeText(group, d);
+          const body = result.text
+            ? escapeHtml(result.text)
+            : `<span class="printMonthNote">${escapeHtml(result.note)}</span>`;
+          return `<td><span class="printMonthDate">${d.getDate()}</span>${body}</td>`;
         })
       );
-      sections[i].querySelector(".loading").outerHTML = `
-        <table class="printMonthTable">
-          <thead>${headerRow}</thead>
-          <tbody>${rowsHtml.join("")}</tbody>
-        </table>
-      `;
+      return `<tr>${cells.join("")}</tr>`;
     })
   );
+  loading.outerHTML = `
+    <table class="printMonthTable">
+      <thead>${headerRow}</thead>
+      <tbody>${rowsHtml.join("")}</tbody>
+    </table>
+  `;
 
   window.print();
 }
@@ -1281,17 +1293,24 @@ document.getElementById("translateFullListToggle").addEventListener("change", (e
   }
   location.reload();
 });
-document.getElementById("printToggle").addEventListener("click", openPrintPicker);
-document.getElementById("printPickerClose").addEventListener("click", closePrintPicker);
-document.getElementById("printPickerScrim").addEventListener("click", closePrintPicker);
-document.getElementById("printWeekBtn").addEventListener("click", () => {
-  closePrintPicker();
-  printWeek();
+document.getElementById("printPopoverWeek").addEventListener("click", () => {
+  const group = printPopoverGroup;
+  closePrintPopover();
+  if (group) printWeek(group);
 });
-document.getElementById("printMonthBtn").addEventListener("click", () => {
-  closePrintPicker();
-  printMonth();
+document.getElementById("printPopoverMonth").addEventListener("click", () => {
+  const group = printPopoverGroup;
+  closePrintPopover();
+  if (group) printMonth(group);
 });
+// Closing on outside click/scroll - opening itself is handled per-icon in
+// renderSections(), since each icon needs to know which menu it's for.
+document.addEventListener("click", (e) => {
+  if (document.getElementById("printPopover").hidden) return;
+  if (e.target.closest("#printPopover")) return;
+  closePrintPopover();
+});
+window.addEventListener("scroll", closePrintPopover, { passive: true, capture: true });
 document.getElementById("disclaimerToggle").addEventListener("click", openDisclaimer);
 document.getElementById("disclaimerClose").addEventListener("click", closeDisclaimer);
 document.getElementById("disclaimerDone").addEventListener("click", closeDisclaimer);

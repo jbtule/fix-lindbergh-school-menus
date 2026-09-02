@@ -693,18 +693,64 @@ body:not(.week-view) .menuSection {
 
 /* ---------- Print ---------- */
 
-.printOptionBtn {
-  margin-bottom: 0.6rem;
-}
-
-.printOptionBtn:last-child {
-  margin-bottom: 0;
-}
-
-.printHint {
-  color: var(--muted);
+/* Subtle by design - a small, low-contrast icon next to each menu's own
+   heading rather than a bold standalone button, so it doesn't compete
+   with the heading itself. */
+.printSectionBtn {
+  background: none;
+  border: none;
   font-size: 0.9rem;
-  margin: 0 0 1rem;
+  line-height: 1;
+  padding: 0.15rem;
+  margin-left: 0.2rem;
+  cursor: pointer;
+  opacity: 0.55;
+  vertical-align: 1px;
+}
+
+.printSectionBtn:hover {
+  opacity: 1;
+}
+
+.printPopover {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  min-width: 220px;
+  overflow: hidden;
+}
+
+.printPopoverBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.6rem 0.8rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.printPopoverBtn:hover {
+  background: var(--card-bg);
+}
+
+.printPopoverBtn:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.printPopoverHint {
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 /* Built fresh by printWeek()/printMonth() (app.js) right before

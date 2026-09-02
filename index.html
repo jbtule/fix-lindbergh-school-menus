@@ -24,7 +24,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Unofficial Menus" />
   <meta name="theme-color" content="#2f6f4f" />
-  <link rel="stylesheet" href="style.css?v=275209f6" />
+  <link rel="stylesheet" href="style.css?v=c17ecda4" />
 </head>
 <body>
   <header class="topbar">
@@ -44,9 +44,6 @@
       </button>
       <button id="pickerToggle" class="pickerToggle" aria-expanded="false" aria-controls="picker">
         Menus <span id="pickerCount" class="badge"></span>
-      </button>
-      <button id="printToggle" class="pickerToggle" aria-expanded="false" aria-controls="printPicker" aria-label="Print" title="Print">
-        🖨️
       </button>
     </div>
   </header>
@@ -93,21 +90,19 @@
   </aside>
   <div id="excludePickerScrim" class="pickerScrim" hidden></div>
 
-  <aside id="printPicker" class="picker" hidden>
-    <div class="pickerHeader">
-      <h2>Print</h2>
-      <button id="printPickerClose" class="iconBtn" aria-label="Close">&times;</button>
-    </div>
-    <div class="pickerBody">
-      <p class="printHint">
-        Uses your selected menus and Dietary preferences, and leaves out
-        any category you've collapsed. Opens your browser's print dialog.
-      </p>
-      <button id="printWeekBtn" class="primaryBtn printOptionBtn">Print this week</button>
-      <button id="printMonthBtn" class="primaryBtn printOptionBtn">Print this month</button>
-    </div>
-  </aside>
-  <div id="printPickerScrim" class="pickerScrim" hidden></div>
+  <!-- Anchored under whichever menu section's print icon was tapped (see
+       openPrintPopover() in app.js) rather than one per section, since
+       only one can ever be open at a time. -->
+  <div id="printPopover" class="printPopover" hidden>
+    <button id="printPopoverWeek" class="printPopoverBtn">
+      Print this week
+      <span class="printPopoverHint">Full detail - entrees, sides, allergens</span>
+    </button>
+    <button id="printPopoverMonth" class="printPopoverBtn">
+      Print this month
+      <span class="printPopoverHint">Entree names only, whole month</span>
+    </button>
+  </div>
 
   <div id="disclaimerScrim" class="pickerScrim" hidden></div>
   <div id="disclaimerModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle" hidden>
@@ -156,8 +151,8 @@
     </a>
   </footer>
 
-  <script src="version.js?v=f73fe955"></script>
+  <script src="version.js?v=b49a8f1a"></script>
   <script src="config.js?v=d42169e2"></script>
-  <script src="app.js?v=088a9380"></script>
+  <script src="app.js?v=55054ee7"></script>
 </body>
 </html>
