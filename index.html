@@ -24,7 +24,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Unofficial Menus" />
   <meta name="theme-color" content="#2f6f4f" />
-  <link rel="stylesheet" href="style.css?v=dbe77177" />
+  <link rel="stylesheet" href="style.css?v=275209f6" />
 </head>
 <body>
   <header class="topbar">
@@ -44,6 +44,9 @@
       </button>
       <button id="pickerToggle" class="pickerToggle" aria-expanded="false" aria-controls="picker">
         Menus <span id="pickerCount" class="badge"></span>
+      </button>
+      <button id="printToggle" class="pickerToggle" aria-expanded="false" aria-controls="printPicker">
+        🖨️ Print
       </button>
     </div>
   </header>
@@ -90,6 +93,22 @@
   </aside>
   <div id="excludePickerScrim" class="pickerScrim" hidden></div>
 
+  <aside id="printPicker" class="picker" hidden>
+    <div class="pickerHeader">
+      <h2>Print</h2>
+      <button id="printPickerClose" class="iconBtn" aria-label="Close">&times;</button>
+    </div>
+    <div class="pickerBody">
+      <p class="printHint">
+        Uses your selected menus and Dietary preferences, and leaves out
+        any category you've collapsed. Opens your browser's print dialog.
+      </p>
+      <button id="printWeekBtn" class="primaryBtn printOptionBtn">Print this week</button>
+      <button id="printMonthBtn" class="primaryBtn printOptionBtn">Print this month</button>
+    </div>
+  </aside>
+  <div id="printPickerScrim" class="pickerScrim" hidden></div>
+
   <div id="disclaimerScrim" class="pickerScrim" hidden></div>
   <div id="disclaimerModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle" hidden>
     <div class="pickerHeader">
@@ -124,6 +143,10 @@
     No menus selected yet. Tap <strong>Menus</strong> above to choose which schools and meals to show.
   </p>
 
+  <!-- Populated on demand by printWeek()/printMonth() (app.js), shown only
+       for the duration of window.print() - see .printArea in style.css. -->
+  <div id="printArea"></div>
+
   <footer class="siteFooter">
     <a href="https://github.com/jbtule/fix-lindbergh-school-menus/commit/{{ site.github.build_revision }}" target="_blank" rel="noopener">
       <img src="https://img.shields.io/badge/GitHub-{{ site.github.build_revision | slice: 0, 7 }}-181717" alt="View source on GitHub" />
@@ -133,8 +156,8 @@
     </a>
   </footer>
 
-  <script src="version.js?v=a5cc4e34"></script>
+  <script src="version.js?v=f73fe955"></script>
   <script src="config.js?v=d42169e2"></script>
-  <script src="app.js?v=89b5a42c"></script>
+  <script src="app.js?v=088a9380"></script>
 </body>
 </html>

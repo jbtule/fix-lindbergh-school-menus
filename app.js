@@ -380,6 +380,14 @@ function closeLanguagePicker() {
   setPanelOpen("languagePicker", "languagePickerScrim", "languageToggle", false);
 }
 
+function openPrintPicker() {
+  setPanelOpen("printPicker", "printPickerScrim", "printToggle", true);
+}
+
+function closePrintPicker() {
+  setPanelOpen("printPicker", "printPickerScrim", "printToggle", false);
+}
+
 // ---------- Disclaimer ----------
 
 function openDisclaimer() {
@@ -712,11 +720,15 @@ async function renderSections() {
   const container = document.getElementById("sections");
   const emptyState = document.getElementById("emptyState");
   const pickerToggle = document.getElementById("pickerToggle");
+  const printWeekBtn = document.getElementById("printWeekBtn");
+  const printMonthBtn = document.getElementById("printMonthBtn");
 
   if (state.selectedIds.length === 0) {
     container.innerHTML = "";
     emptyState.hidden = false;
     pickerToggle.classList.add("pulse");
+    printWeekBtn.disabled = true;
+    printMonthBtn.disabled = true;
     return;
   }
   const groups = groupSelectedMenus(state.selectedIds);
@@ -724,10 +736,14 @@ async function renderSections() {
     container.innerHTML = "";
     emptyState.hidden = false;
     pickerToggle.classList.add("pulse");
+    printWeekBtn.disabled = true;
+    printMonthBtn.disabled = true;
     return;
   }
   emptyState.hidden = true;
   pickerToggle.classList.remove("pulse");
+  printWeekBtn.disabled = false;
+  printMonthBtn.disabled = false;
 
   container.innerHTML = "";
   const sectionEls = groups.map((group) => {
@@ -959,6 +975,170 @@ function escapeHtml(s) {
   return div.innerHTML;
 }
 
+// ---------- Print ----------
+
+// Monday-Friday dates (1..last day) for the month containing `date`,
+// arranged into a rectangular grid whose columns are always Mon/Tue/Wed/
+// Thu/Fri, padded with `null` for the days outside the month - so e.g. a
+// month starting on a Wednesday still lines up under the right weekday
+// header instead of shifting the whole grid left.
+function buildMonthGrid(date) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const lastDate = new Date(year, month + 1, 0).getDate();
+  const rows = [];
+  const rowByMonday = new Map();
+  for (let day = 1; day <= lastDate; day++) {
+    const d = new Date(year, month, day);
+    const weekday = d.getDay();
+    if (weekday === 0 || weekday === 6) continue; // no weekend menus
+    const col = weekday - 1; // Mon=0 ... Fri=4
+    const monday = new Date(d);
+    monday.setDate(monday.getDate() - col);
+    const key = monday.getTime();
+    let row = rowByMonday.get(key);
+    if (!row) {
+      row = new Array(5).fill(null);
+      rowByMonday.set(key, row);
+      rows.push(row);
+    }
+    row[col] = d;
+  }
+  return rows;
+}
+
+// Compact, entree-only text for one menu's one day in the month print - no
+// sides/allergens, since a whole month has to fit on a page. Returns
+// { text } when there's something to show, or { note } for a short
+// explanation (not scheduled that weekday, nothing published yet, etc.)
+// so the caller can render a muted line instead of a blank-looking cell.
+async function computeMonthEntreeText(info, date) {
+  const weekday = date.getDay();
+  if (!info.hasFullWeek && !info.specificDays.has(weekday)) {
+    return { note: "Not scheduled" };
+  }
+
+  let docId;
+  try {
+    docId = await fetchDocIdForDate(info.apiId, date);
+  } catch (e) {
+    return { note: "Couldn't load" };
+  }
+  if (!docId) return { note: "No menu yet" };
+
+  let items;
+  try {
+    items = await fetchMenuItems(docId);
+  } catch (e) {
+    return { note: "Couldn't load" };
+  }
+
+  const entrees = items.filter(
+    (it) =>
+      it.day === date.getDate() &&
+      it.product &&
+      it.product.category === "Entrees" &&
+      !isHiddenFromWebView(it.product)
+  );
+  if (entrees.length === 0) return { note: "No menu yet" };
+  return { text: sortItemsForDay(entrees).map((it) => it.product.name).join(" / ") };
+}
+
+// Full detail (entrees, sides, allergens) for the current Mon-Fri week,
+// one section per selected menu - reuses computeDayHtml() directly, so a
+// category collapsed on screen (see .sideGroup.collapsed handling in the
+// print media query) comes out exactly as collapsed on paper.
+async function printWeek() {
+  const groups = groupSelectedMenus(state.selectedIds);
+  if (groups.length === 0) return;
+  const dates = weekDatesFor(state.currentDate);
+  const area = document.getElementById("printArea");
+
+  area.innerHTML = groups
+    .map(
+      (g) => `
+      <section class="printMenuSection">
+        <h2>${escapeHtml(g.school)} - ${escapeHtml(g.name)}</h2>
+        <div class="printWeekDays"><p class="loading">Loading...</p></div>
+      </section>
+    `
+    )
+    .join("");
+  const bodies = area.querySelectorAll(".printWeekDays");
+
+  await Promise.all(
+    groups.map(async (g, i) => {
+      const dayHtmls = await Promise.all(dates.map((d) => computeDayHtml(g, d)));
+      bodies[i].innerHTML = dates
+        .map(
+          (d, j) => `
+          <div class="printDay">
+            <h3>${WEEKDAY_NAMES[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}</h3>
+            ${dayHtmls[j]}
+          </div>
+        `
+        )
+        .join("");
+    })
+  );
+
+  window.print();
+}
+
+// Compact whole-month calendar, entree names only, one table per selected
+// menu - see computeMonthEntreeText() for why it's entree-only rather than
+// reusing computeDayHtml() the way printWeek() does.
+async function printMonth() {
+  const groups = groupSelectedMenus(state.selectedIds);
+  if (groups.length === 0) return;
+  const grid = buildMonthGrid(state.currentDate);
+  const monthLabel = `${MONTH_NAMES[state.currentDate.getMonth()]} ${state.currentDate.getFullYear()}`;
+  const headerRow = `<tr>${WEEKDAY_NAMES.slice(1, 6)
+    .map((n) => `<th>${n}</th>`)
+    .join("")}</tr>`;
+  const area = document.getElementById("printArea");
+
+  area.innerHTML = groups
+    .map(
+      (g) => `
+      <section class="printMenuSection">
+        <h2>${escapeHtml(g.school)} - ${escapeHtml(g.name)} - ${monthLabel}</h2>
+        <p class="loading">Loading...</p>
+      </section>
+    `
+    )
+    .join("");
+  const sections = area.querySelectorAll(".printMenuSection");
+
+  await Promise.all(
+    groups.map(async (g, i) => {
+      const rowsHtml = await Promise.all(
+        grid.map(async (row) => {
+          const cells = await Promise.all(
+            row.map(async (d) => {
+              if (!d) return "<td></td>";
+              const result = await computeMonthEntreeText(g, d);
+              const body = result.text
+                ? escapeHtml(result.text)
+                : `<span class="printMonthNote">${escapeHtml(result.note)}</span>`;
+              return `<td><span class="printMonthDate">${d.getDate()}</span>${body}</td>`;
+            })
+          );
+          return `<tr>${cells.join("")}</tr>`;
+        })
+      );
+      sections[i].querySelector(".loading").outerHTML = `
+        <table class="printMonthTable">
+          <thead>${headerRow}</thead>
+          <tbody>${rowsHtml.join("")}</tbody>
+        </table>
+      `;
+    })
+  );
+
+  window.print();
+}
+
 // The API sends allergen_* flags as "1"/null rather than real booleans.
 function isAllergenFlagged(v) {
   return v === true || v === "1" || v === 1;
@@ -1100,6 +1280,17 @@ document.getElementById("translateFullListToggle").addEventListener("change", (e
        reopen automatically */
   }
   location.reload();
+});
+document.getElementById("printToggle").addEventListener("click", openPrintPicker);
+document.getElementById("printPickerClose").addEventListener("click", closePrintPicker);
+document.getElementById("printPickerScrim").addEventListener("click", closePrintPicker);
+document.getElementById("printWeekBtn").addEventListener("click", () => {
+  closePrintPicker();
+  printWeek();
+});
+document.getElementById("printMonthBtn").addEventListener("click", () => {
+  closePrintPicker();
+  printMonth();
 });
 document.getElementById("disclaimerToggle").addEventListener("click", openDisclaimer);
 document.getElementById("disclaimerClose").addEventListener("click", closeDisclaimer);

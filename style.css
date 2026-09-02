@@ -261,6 +261,11 @@ body {
   cursor: pointer;
 }
 
+.primaryBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .modal {
   position: fixed;
   top: 50%;
@@ -684,4 +689,132 @@ body:not(.week-view) .menuSection {
 @media (max-width: 480px) {
   .topbar h1 { font-size: 1rem; }
   .dayLabel { font-size: 1rem; min-width: 0; }
+}
+
+/* ---------- Print ---------- */
+
+.printOptionBtn {
+  margin-bottom: 0.6rem;
+}
+
+.printOptionBtn:last-child {
+  margin-bottom: 0;
+}
+
+.printHint {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+/* Built fresh by printWeek()/printMonth() (app.js) right before
+   window.print() is called, and cleared right after - kept out of normal
+   layout the rest of the time, since it only ever exists for the life of
+   one print job. */
+#printArea {
+  display: none;
+}
+
+@media print {
+  /* Force the light palette regardless of the OS/browser's color scheme -
+     paper is white no matter what, and the site's dark-mode variables
+     would otherwise leave print output using light text on a background
+     the printer never draws. */
+  :root {
+    color-scheme: light;
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #555555;
+    --border: #999999;
+    --accent: #2f6f4f;
+    --accent-fg: #ffffff;
+    --card-bg: #f7f7f5;
+    --today-bg: #fff7d6;
+    --today-border: #d9b400;
+    --warn-border: #c99a00;
+    --warn-bg: #fffbeb;
+    --warn-label: #8a6d00;
+    --danger-border: #c0392b;
+    --danger-bg: #fdecea;
+    --danger-label: #a5291b;
+  }
+
+  body > *:not(#printArea) {
+    display: none !important;
+  }
+
+  #printArea {
+    display: block !important;
+  }
+
+  .printMenuSection {
+    break-after: page;
+  }
+
+  .printMenuSection:last-child {
+    break-after: auto;
+  }
+
+  .printMenuSection h2 {
+    margin-top: 0;
+  }
+
+  /* A category collapsed on screen stays fully out of the printout too,
+     pill and all - there's nothing left to tap on paper, so no reason to
+     take up space announcing it. */
+  #printArea .sideGroup.collapsed {
+    display: none;
+  }
+
+  .printWeekDays {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .printDay {
+    flex: 1 1 30%;
+    min-width: 200px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    break-inside: avoid;
+  }
+
+  .printDay h3 {
+    margin: 0 0 0.35rem;
+    font-size: 0.95rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.2rem;
+  }
+
+  .printMonthTable {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .printMonthTable th,
+  .printMonthTable td {
+    border: 1px solid var(--border);
+    padding: 0.3rem 0.4rem;
+    vertical-align: top;
+    text-align: left;
+    font-size: 0.8rem;
+  }
+
+  .printMonthTable td {
+    height: 3.4em;
+  }
+
+  .printMonthDate {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 0.15rem;
+  }
+
+  .printMonthNote {
+    color: var(--muted);
+    font-style: italic;
+  }
 }
