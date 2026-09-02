@@ -24,7 +24,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Unofficial Menus" />
   <meta name="theme-color" content="#2f6f4f" />
-  <link rel="stylesheet" href="style.css?v=118bbf3c" />
+  <link rel="stylesheet" href="style.css?v=ba56f995" />
 </head>
 <body>
   <header class="topbar">
@@ -33,20 +33,23 @@
       <span class="unofficialBadge">unofficial</span>
       <button id="disclaimerToggle" class="disclaimerLink">disclaimer</button>
     </h1>
-    <div class="topbarButtons">
-      <!-- Hidden at startup unless TRANSLATE_WIDGET_ENABLED (app.js) is
-           true - see loadTranslateWidget(). -->
-      <button id="languageToggle" class="pickerToggle" aria-expanded="false" aria-controls="languagePicker" hidden>
-        🌐 Translate
-      </button>
-      <button id="excludeToggle" class="pickerToggle" aria-expanded="false" aria-controls="excludePicker">
-        Dietary <span id="excludeCount" class="badge"></span>
-      </button>
-      <button id="pickerToggle" class="pickerToggle" aria-expanded="false" aria-controls="picker">
-        Menus <span id="pickerCount" class="badge"></span>
-      </button>
-    </div>
   </header>
+
+  <!-- Deliberately not part of .topbar (which stays sticky) - only the
+       title should stay pinned while scrolling, not this row. -->
+  <div class="topbarButtons">
+    <!-- Hidden at startup unless TRANSLATE_WIDGET_ENABLED (app.js) is
+         true - see loadTranslateWidget(). -->
+    <button id="languageToggle" class="pickerToggle" aria-expanded="false" aria-controls="languagePicker" hidden>
+      🌐 Translate
+    </button>
+    <button id="excludeToggle" class="pickerToggle" aria-expanded="false" aria-controls="excludePicker">
+      Dietary <span id="excludeCount" class="badge"></span>
+    </button>
+    <button id="pickerToggle" class="pickerToggle" aria-expanded="false" aria-controls="picker">
+      Menus <span id="pickerCount" class="badge"></span>
+    </button>
+  </div>
 
   <aside id="picker" class="picker" hidden>
     <div class="pickerHeader">
@@ -155,7 +158,7 @@
     </a>
   </footer>
 
-  <script src="version.js?v=86882ef3"></script>
+  <script src="version.js?v=c8022b08"></script>
   <script src="config.js?v=d42169e2"></script>
   <script src="app.js?v=c5d9a8f7"></script>
 </body>

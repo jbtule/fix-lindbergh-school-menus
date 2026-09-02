@@ -52,9 +52,6 @@ body {
 .topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.4rem 0.75rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -100,10 +97,16 @@ body {
   vertical-align: middle;
 }
 
+/* No longer a flex child of .topbar (which stays sticky) - a plain row
+   of its own right below it, so it scrolls away with the page instead of
+   staying pinned along with the title. */
 .topbarButtons {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
 }
 
 /* Lives inside #languagePicker's pickerBody - the widget fills itself in
