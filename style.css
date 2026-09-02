@@ -607,6 +607,12 @@ body:not(.week-view) .menuSection {
   display: flex;
   flex-wrap: wrap;
   gap: 0.3rem 0.6rem;
+  /* .choiceGroup only pushes space below itself, not above whatever
+     comes next - fine for the usual one-station case, but with several
+     stations (high school lunch) a station's sides ran straight into
+     the next station's Entree box with no gap at all. This covers both
+     that and the final shared-sides block after the last station. */
+  margin-bottom: 0.75rem;
 }
 
 .sideGroup {
