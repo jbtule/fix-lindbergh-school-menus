@@ -1547,27 +1547,31 @@ updateBodyViewModeClass();
 renderSections();
 loadTranslateWidget();
 
-// Keeps --topbar-height (see .dayNav in style.css, which sticks right
-// below .topbar) in sync with its actual rendered height, since that
-// height isn't fixed - the title wraps to two lines on narrow screens or
-// with larger text settings.
-function setTopbarHeightVar(height) {
-  document.documentElement.style.setProperty("--topbar-height", `${height}px`);
+// Keeps a `--<name>-height` custom property in sync with an element's
+// actual rendered height, for CSS elsewhere that stacks sticky elements
+// on top of each other (.dayNav under .topbar, each .menuSection h2 under
+// both - see style.css) and needs to know exactly how tall the ones above
+// it really are, since none of those heights are fixed - the title wraps
+// to two lines on narrow screens or with larger text settings, and
+// .dayNav's controls can wrap too.
+function trackHeightVar(el, name) {
+  const set = (height) => document.documentElement.style.setProperty(`--${name}-height`, `${height}px`);
+  // Set once synchronously up front - ResizeObserver's own first callback
+  // isn't guaranteed to land before the very first paint, which would
+  // otherwise leave whatever sticks below `el` sitting under the CSS
+  // fallback value (a rough estimate) just long enough to overlap it.
+  set(el.getBoundingClientRect().height);
+  // Catches every subsequent change regardless of what caused it (viewport
+  // resize, text zoom, font load), not just the window "resize" event.
+  new ResizeObserver((entries) => {
+    const height = entries[0].borderBoxSize
+      ? entries[0].borderBoxSize[0].blockSize
+      : entries[0].contentRect.height;
+    set(height);
+  }).observe(el);
 }
-const topbarEl = document.querySelector(".topbar");
-// Set once synchronously up front - ResizeObserver's own first callback
-// isn't guaranteed to land before the very first paint, which would
-// otherwise leave .dayNav sitting under the CSS fallback value (a rough
-// estimate) just long enough to overlap the title bar.
-setTopbarHeightVar(topbarEl.getBoundingClientRect().height);
-// Catches every subsequent change regardless of what caused it (viewport
-// resize, text zoom, font load), not just the window "resize" event.
-new ResizeObserver((entries) => {
-  const height = entries[0].borderBoxSize
-    ? entries[0].borderBoxSize[0].blockSize
-    : entries[0].contentRect.height;
-  setTopbarHeightVar(height);
-}).observe(topbarEl);
+trackHeightVar(document.querySelector(".topbar"), "topbar");
+trackHeightVar(document.querySelector(".dayNav"), "daynav");
 
 // See REOPEN_TRANSLATE_PANEL_KEY - only ever set right before the
 // reload the "Show full language list" checkbox triggers, and cleared

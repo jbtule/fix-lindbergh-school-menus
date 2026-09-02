@@ -457,11 +457,21 @@ body:not(.week-view) .menuSection {
   width: auto;
 }
 
+/* Docks right under .dayNav (itself docked under .topbar) and stays put
+   for as long as its own section is on screen - once that section
+   scrolls past, it's pushed off by the next section's h2 taking the same
+   spot, since each lives inside its own .menuSection rather than one
+   shared bar. --topbar-height/--daynav-height are kept in sync with their
+   actual rendered heights by ResizeObservers in app.js. */
 .menuSection h2 {
   font-size: 1.15rem;
   border-bottom: 2px solid var(--accent);
   padding-bottom: 0.4rem;
   margin-bottom: 0.75rem;
+  position: sticky;
+  top: calc(var(--topbar-height, 3.2rem) + var(--daynav-height, 3.4rem));
+  background: var(--bg);
+  z-index: 8;
 }
 
 .loading, .empty, .error, .notScheduled {
