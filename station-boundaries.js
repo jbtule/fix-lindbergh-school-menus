@@ -13,7 +13,15 @@
 //
 // High school lunch is served from ~10 named food stations (Ballpark
 // Classics, Taco Street, Panini Station, ...). The API has no field saying
-// which station an item belongs to - the schema was checked exhaustively.
+// which station an item belongs to, and no field recording their order
+// either - both confirmed by reading the vendor's own JavaScript bundle,
+// which is the authority here since GraphQL introspection is disabled. The
+// menu item type is exactly { day, importSrcId, month, year, portion_size,
+// hidden, nutrients, product }; the order a day's items come back in is
+// simply the stored array order, which is the order staff dragged them into
+// in the district's menu builder (it saves items as {day, productID,
+// importSrcId} with position implied by array index and nothing else).
+// See "The MenuItem type" in the extraction NOTES.md for the full writeup.
 // groupEntreeRuns() therefore infers station boundaries from item order
 // alone: a new station starts when an Entrees item follows one that already
 // collected side items. That fails whenever two adjacent stations have no
