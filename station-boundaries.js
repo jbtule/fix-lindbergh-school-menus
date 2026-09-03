@@ -18,9 +18,14 @@
 // which is the authority here since GraphQL introspection is disabled. The
 // menu item type is exactly { day, importSrcId, month, year, portion_size,
 // hidden, nutrients, product }; the order a day's items come back in is
-// simply the stored array order, which is the order staff dragged them into
-// in the district's menu builder (it saves items as {day, productID,
-// importSrcId} with position implied by array index and nothing else).
+// simply the stored array order, and MongoDB preserves array order, so
+// whatever wrote the array is what the API returns unchanged. For this
+// district that was a bulk import - all 1399 items in September 2026 share
+// one importSrcId - so the ordering originates in the export from whichever
+// external nutrition system feeds them, where menus are laid out by serving
+// line. That is why the runs line up with stations at all, and why nothing
+// enforces it: the grouping is a side effect of the upstream export order,
+// not a recorded property.
 // See "The MenuItem type" in the extraction NOTES.md for the full writeup.
 // groupEntreeRuns() therefore infers station boundaries from item order
 // alone: a new station starts when an Entrees item follows one that already
