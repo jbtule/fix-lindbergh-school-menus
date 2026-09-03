@@ -1236,15 +1236,62 @@ function markPrintAreaReady() {
   document.getElementById("printArea").dataset.printReady = "1";
 }
 
+// Restores #printArea to the fallback note rather than emptying it - see the
+// markup comment in index.html for why the note has to be resting content
+// instead of something beforeprint injects.
+//
+// Wrapped in a .printMenuSection so the note has the same shape as real print
+// content rather than being a bare <p>. This was written while chasing a
+// report of the note printing blank on iPhone, which then stopped
+// reproducing and was never explained - quite possibly just a stale cached
+// copy on the phone. Kept because matching the structure of everything else
+// in #printArea is worth having on its own, NOT because it is a known fix.
+const PRINT_FALLBACK_NOTE = `
+    <section class="printMenuSection">
+      <p class="printFallbackNote">
+        Nothing to print yet - cancel this, then use the \u{1F5A8}\u{FE0F} Print button
+        next to a menu's heading instead. It opens the print dialog for you.
+      </p>
+    </section>
+  `;
+
 function clearPrintArea() {
   const area = document.getElementById("printArea");
   delete area.dataset.printReady;
-  area.innerHTML = "";
+  area.innerHTML = PRINT_FALLBACK_NOTE;
 }
 
 function printNow() {
   markPrintAreaReady();
   window.print();
+}
+
+// A printed menu stops being "what you asked to print" once the print UI has
+// closed, so retire it then and the next native print gets the fallback note
+// instead of silently reprinting it.
+//
+// DESKTOP ONLY, and that restriction is the whole point. This file already
+// establishes, further up, that iOS fires afterprint BEFORE the print preview
+// has rendered - that is the bug data-print-ready exists to work around.
+// Anything that mutates #printArea from afterprint therefore destroys the
+// content on iOS before it is ever printed: hooking retirement to it made
+// iPhone print the fallback note in every case, button included. A
+// visibilitychange variant was tried too and failed the same way, since iOS's
+// non-blocking window.print() lets the share sheet's hidden/visible
+// transition land before the preview renders.
+//
+// So on touch devices nothing retires printed content early; it stays until
+// the next render (see renderSections). A Share > Print immediately after
+// printing therefore reprints the same menu, which is a far better failure
+// than breaking the Print button. Detected by capability rather than by
+// sniffing the user agent.
+function retirePrintedContent() {
+  if (document.getElementById("printArea").dataset.printReady === "1") {
+    clearPrintArea();
+  }
+}
+if (!window.matchMedia("(hover: none) and (pointer: coarse)").matches) {
+  window.addEventListener("afterprint", retirePrintedContent);
 }
 
 // Third attempt at honoring an active Google Translate selection when
@@ -1623,20 +1670,19 @@ window.addEventListener("scroll", closeStationInfo, { passive: true, capture: tr
 // iOS's Share > Print) without ever tapping a menu's own Print button
 // first would otherwise print whatever #printArea last happened to hold
 // (stale content from an earlier button print, or nothing at all).
-// The data-print-ready marker (see printNow() above) distinguishes "print
-// was actually driven by the button" from any other way of reaching the
-// browser's print dialog, so a native trigger always gets pointed at the
-// real print icon instead of possibly showing an unrelated menu's
-// leftover printout. renderSections() clears it, so content only counts as
-// current until the app moves on.
+// This only does useful work on desktop, though it is left unconditional
+// because it is inert rather than harmful elsewhere: it either returns early
+// or writes the note over content that is already the note. iOS does not need
+// it - #printArea holds the fallback note whenever there is nothing current
+// to print, so a native Share > Print shows the right thing with no event
+// involved. On desktop, where beforeprint is reliable and fires before the
+// page is rendered for print, it additionally catches Ctrl+P/Cmd+P issued
+// while a button-built menu is still sitting in #printArea, pointing the user
+// at the real Print button instead of printing a menu they did not ask for.
 window.addEventListener("beforeprint", () => {
-  if (document.getElementById("printArea").dataset.printReady === "1") return;
-  document.getElementById("printArea").innerHTML = `
-    <p class="printFallbackNote">
-      Nothing to print yet - cancel this, then use the 🖨️ Print button
-      next to a menu's heading instead. It opens the print dialog for you.
-    </p>
-  `;
+  const area = document.getElementById("printArea");
+  if (area.dataset.printReady === "1") return;
+  area.innerHTML = PRINT_FALLBACK_NOTE;
 });
 document.getElementById("disclaimerToggle").addEventListener("click", openDisclaimer);
 document.getElementById("disclaimerClose").addEventListener("click", closeDisclaimer);

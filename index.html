@@ -158,7 +158,20 @@
        style.css) - but genuinely visible on screen, via .printPreviewing,
        while an active translation is (maybe) being given a chance to
        translate it first - see isTranslationActive() in app.js. -->
-  <div id="printArea"></div>
+  <!-- Starts holding the native-print fallback note rather than empty, and
+       is put back to it by clearPrintArea() (app.js). It is NOT injected at
+       beforeprint time: on iOS a Share > Print showed no note at all that
+       way, so either beforeprint does not fire for it or it fires after the
+       page has been snapshotted. Content that is simply always in the DOM
+       needs no print event to work. -->
+  <div id="printArea">
+    <section class="printMenuSection">
+      <p class="printFallbackNote">
+        Nothing to print yet - cancel this, then use the 🖨️ Print button
+        next to a menu's heading instead. It opens the print dialog for you.
+      </p>
+    </section>
+  </div>
 
   <!-- Pinned to the top of #printArea while it's visible that way. -->
   <div id="printPreparingBanner" class="printPreparingBanner" hidden>
@@ -175,11 +188,11 @@
     </a>
   </footer>
 
-  <script src="version.js?v=83fef398"></script>
+  <script src="version.js?v=d0795f27"></script>
   <script src="config.js?v=61810c4a"></script>
   <!-- Optional: high-school station boundary hints. Safe to remove - see
        the header comment in the file. -->
   <script src="station-boundaries.js?v=3843218d"></script>
-  <script src="app.js?v=bc90cc9e"></script>
+  <script src="app.js?v=3f6f3cf1"></script>
 </body>
 </html>
