@@ -797,6 +797,7 @@ async function renderSections() {
   const pickerToggle = document.getElementById("pickerToggle");
   closePrintPopover(); // its anchor is about to be torn down either way
   closeStationInfo(); // ditto - the (i) buttons are about to be replaced
+  clearPrintArea(); // whatever was last printed is about to be out of date
 
   if (state.selectedIds.length === 0) {
     container.innerHTML = "";
@@ -1213,23 +1214,36 @@ async function computeDayItemsForPrint(info, date) {
 // added well after its initial pass, there's no way found here to hook
 // into it. Print is English-only regardless of the page's translation.
 
-// Marks the window.print() calls in printWeek()/printMonth() as button-
-// driven so the beforeprint listener further down can tell them apart
-// from a native Ctrl+P/Cmd+P/Share>Print - see that listener for why.
-// Cleared on afterprint rather than right after window.print() returns:
+// Whether #printArea currently holds real, button-built content is marked
+// on the element itself, not tracked in a boolean tied to the print moment.
+//
+// Two earlier attempts both tied it to the moment and both broke on iOS.
 // window.print() blocks until the dialog closes on desktop, but iOS
-// Safari's is non-blocking - it returns immediately and shows the print
-// UI asynchronously, so resetting the flag right after the call (in a
-// finally, say) cleared it before the real print moment on iOS, and
-// beforeprint ended up seeing it already false and overwriting the
-// button's own content with the native-print fallback note instead.
-// afterprint fires once the print UI actually closes either way.
-let printingViaButton = false;
-window.addEventListener("afterprint", () => {
-  printingViaButton = false;
-});
+// Safari's is non-blocking and its print lifecycle does not line up with
+// the desktop one: it returns immediately, and afterprint can fire before
+// the preview has even rendered. So a flag cleared right after the call
+// was already false at the real print moment - and so was a flag cleared
+// on afterprint. Either way the beforeprint that actually mattered saw
+// false and overwrote the freshly built menu with the fallback note below,
+// which is the "print shows the wrong content on iPhone" bug.
+//
+// A data attribute on the content is not subject to that race: it is set
+// when the content is built and cleared when the content stops being
+// current (the next render), regardless of what order the print events
+// arrive in, or whether they arrive at all - iOS Safari has historically
+// not fired them reliably.
+function markPrintAreaReady() {
+  document.getElementById("printArea").dataset.printReady = "1";
+}
+
+function clearPrintArea() {
+  const area = document.getElementById("printArea");
+  delete area.dataset.printReady;
+  area.innerHTML = "";
+}
+
 function printNow() {
-  printingViaButton = true;
+  markPrintAreaReady();
   window.print();
 }
 
@@ -1609,13 +1623,14 @@ window.addEventListener("scroll", closeStationInfo, { passive: true, capture: tr
 // iOS's Share > Print) without ever tapping a menu's own Print button
 // first would otherwise print whatever #printArea last happened to hold
 // (stale content from an earlier button print, or nothing at all).
-// printingViaButton (see printNow() above) distinguishes "print was
-// actually driven by the button" from any other way of reaching the
+// The data-print-ready marker (see printNow() above) distinguishes "print
+// was actually driven by the button" from any other way of reaching the
 // browser's print dialog, so a native trigger always gets pointed at the
 // real print icon instead of possibly showing an unrelated menu's
-// leftover printout.
+// leftover printout. renderSections() clears it, so content only counts as
+// current until the app moves on.
 window.addEventListener("beforeprint", () => {
-  if (printingViaButton) return;
+  if (document.getElementById("printArea").dataset.printReady === "1") return;
   document.getElementById("printArea").innerHTML = `
     <p class="printFallbackNote">
       Nothing to print yet - cancel this, then use the 🖨️ Print button
