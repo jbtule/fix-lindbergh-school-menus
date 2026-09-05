@@ -1,0 +1,66 @@
+name: Deploy GitHub Pages
+
+# Replaces the old Jekyll-based "deploy from a branch" GitHub Pages setup
+# with an Actions-based one. There's nothing Jekyll-y about this site (no
+# _config.yml, no templating) beyond one Liquid tag it relied on for the
+# footer's commit-SHA badge (site.github.build_revision, auto-populated by
+# the legacy build) - rather than run a full Jekyll build just for that one
+# substitution, index.html now carries __BUILD_SHA__/__BUILD_SHA_SHORT__
+# placeholders that this workflow fills in itself. Requires the repo's
+# Settings -> Pages -> Build and deployment -> Source to be set to "GitHub
+# Actions" (one-time, not something this workflow can do for itself).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deployment at a time; don't cancel one that's already
+# live-deploying (a half-applied deploy is worse than a queued one).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Copies every tracked file except the ical-cron/dev-tooling ones
+      # (scripts/build-ical.js, package.json, hooks/, this .github/
+      # directory, etc.) - those have nothing to do with the web app and
+      # shouldn't end up served from the site root. Update this pattern if
+      # a new top-level dev-only file/folder is added.
+      - name: Stage site files
+        run: |
+          mkdir -p _site
+          git ls-files | grep -vE '^(\.github/|\.gitignore$|package(-lock)?\.json$|scripts/|hooks/|README\.md$)' | while read -r f; do
+            mkdir -p "_site/$(dirname "$f")"
+            cp "$f" "_site/$f"
+          done
+
+      - name: Inject build revision
+        run: |
+          short_sha="${GITHUB_SHA:0:7}"
+          sed -i "s/__BUILD_SHA_SHORT__/$short_sha/g; s/__BUILD_SHA__/$GITHUB_SHA/g" _site/index.html
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
