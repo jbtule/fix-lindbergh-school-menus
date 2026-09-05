@@ -946,7 +946,20 @@ async function fetchDayItems(info, date) {
   );
 
   if (dayItems.length === 0) {
-    return { kind: "empty", message: "No items published for this day yet." };
+    // The API has no holiday/day-off flag at all, so there's no way to know
+    // *why* a day has no items - could be a holiday, an in-service day, or
+    // just a gap in the district's data. What IS knowable from data already
+    // fetched: whether a LATER day this same month already has items. If
+    // so, the district has clearly published past this point, so this gap
+    // is intentional rather than "not entered yet" - but that's all this
+    // signal supports claiming; it says nothing about the reason, so
+    // "yet" is the only word this drops, not a guess at what the day is.
+    const hasLaterItems = items.some((it) => it.day > date.getDate());
+    return {
+      kind: "empty",
+      message: hasLaterItems ? "No menu published for this day." : "No items published for this day yet.",
+      hasLaterItems,
+    };
   }
 
   return { items: dayItems };
@@ -1139,7 +1152,11 @@ async function computeMonthEntrees(info, date) {
   const result = await fetchDayItems(info, date);
   if (result.kind === "notScheduled") return { note: "Not scheduled" };
   if (result.kind === "error") return { note: "Couldn't load" };
-  if (result.kind === "empty") return { note: "No menu yet" };
+  // "yet" implies it's still coming - drop it once a later day this same
+  // month already has data, since that means this gap is intentional, not
+  // pending (though not why - see the hasLaterItems comment in
+  // fetchDayItems()).
+  if (result.kind === "empty") return { note: result.hasLaterItems ? "No menu" : "No menu yet" };
 
   const entrees = result.items.filter((it) => it.product.category === "Entrees");
   if (entrees.length === 0) return { note: "No menu yet" };
