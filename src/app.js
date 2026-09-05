@@ -326,7 +326,10 @@ let actionMenuGroup = null;
 function openActionMenu(anchor, group) {
   actionMenuGroup = group;
   const popover = document.getElementById("actionPopover");
-  document.getElementById("actionPopoverPrint").hidden = !CAN_PRINT;
+  // Disabled rather than hidden when !CAN_PRINT - explains why (see the
+  // hint span in index.html) instead of the entry just vanishing.
+  document.getElementById("actionPopoverPrint").disabled = !CAN_PRINT;
+  document.getElementById("actionPopoverPrintHint").hidden = CAN_PRINT;
   popover.hidden = false;
   const rect = anchor.getBoundingClientRect();
   popover.style.top = `${rect.bottom + window.scrollY + 4}px`;

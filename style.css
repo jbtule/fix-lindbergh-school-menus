@@ -930,6 +930,15 @@ body:not(.week-view) .menuSection {
   background: var(--card-bg);
 }
 
+.printPopoverBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.printPopoverBtn:disabled:hover {
+  background: none;
+}
+
 .printPopoverBtn:not(:last-child) {
   border-bottom: 1px solid var(--border);
 }

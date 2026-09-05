@@ -122,8 +122,12 @@
        of its own (#printPanel / #subscribePanel below) rather than acting
        immediately - this popover just picks which one. -->
   <div id="actionPopover" class="printPopover" hidden>
+    <!-- Stays visible but disabled (rather than hidden outright) when
+         !CAN_PRINT (app.js) - the hint span explains why instead of the
+         entry just silently vanishing. -->
     <button id="actionPopoverPrint" class="printPopoverBtn">
       🖨️ Print
+      <span id="actionPopoverPrintHint" class="printPopoverHint" hidden>Only works in a browser tab, not installed</span>
     </button>
     <!-- notranslate/translate="no": Google's Website Translator would
          otherwise mangle "Calendar Subscribe" and (worse) #subscribePanel
