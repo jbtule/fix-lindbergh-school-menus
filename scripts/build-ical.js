@@ -9,7 +9,13 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createEvents } from "ics";
-import { MENU_BY_ID, ALLERGEN_DEFS, IDEA_CENTER_GRADE_BY_WEEKDAY, SCHOOL_CALENDAR_ICS_URL } from "../src/config.js";
+import {
+  MENU_BY_ID,
+  ALLERGEN_DEFS,
+  IDEA_CENTER_GRADE_BY_WEEKDAY,
+  SCHOOL_CALENDAR_ICS_URL,
+  SCHOOL_CALENDAR_IDS,
+} from "../src/config.js";
 import { fetchMonthsList, fetchMenuItems } from "../src/menu-api.js";
 import { icsSlugFor } from "../src/ical-naming.js";
 
@@ -260,15 +266,16 @@ async function buildCalendar(target) {
   return withPublishedTTL(value);
 }
 
-// Parses the district's own event calendar (see SCHOOL_CALENDAR_ICS_URL in
-// config.js) for "No School ..." all-day events, expanding each into every
-// individual date it covers (DTEND is exclusive, same convention this
-// file's own generated events use - see the endDate comment above).
-// Hand-rolled rather than pulling in an ics-parsing dependency: this only
-// ever needs three fields out of a much bigger feed (board meetings and
-// the like, which have no DTSTART;VALUE=DATE and so are skipped outright).
-function parseNoSchoolDays(icsText) {
-  const dates = new Set();
+// Parses one of the district's event calendars (see SCHOOL_CALENDAR_ICS_URL/
+// SCHOOL_CALENDAR_IDS in config.js) for "No School ..." all-day events,
+// expanding each into every individual date it covers (DTEND is exclusive,
+// same convention this file's own generated events use - see the endDate
+// comment above) mapped to that event's own SUMMARY text. Hand-rolled
+// rather than pulling in an ics-parsing dependency: this only ever needs
+// three fields out of a much bigger feed (board meetings and the like,
+// which have no DTSTART;VALUE=DATE and so are skipped outright).
+function parseNoSchoolLabels(icsText) {
+  const labels = {};
   const toYMD = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const parseDateStamp = (s) => new Date(Number(s.slice(0, 4)), Number(s.slice(4, 6)) - 1, Number(s.slice(6, 8)));
   for (const block of icsText.split("BEGIN:VEVENT").slice(1)) {
@@ -276,20 +283,43 @@ function parseNoSchoolDays(icsText) {
     if (!startMatch) continue; // a timed (non-all-day) event, e.g. a board meeting
     const summaryMatch = block.match(/SUMMARY:(.*)/);
     if (!summaryMatch || !/no school/i.test(summaryMatch[1])) continue;
+    const label = summaryMatch[1].trim();
     const endMatch = block.match(/DTEND;VALUE=DATE:(\d{8})/);
     const start = parseDateStamp(startMatch[1]);
     const end = endMatch ? parseDateStamp(endMatch[1]) : new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
     for (const d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
-      dates.add(toYMD(d));
+      labels[toYMD(d)] = label;
     }
   }
-  return [...dates].sort();
+  return labels;
 }
 
+async function fetchCalendarLabels(calendarId) {
+  const url = `https://www.lindberghschools.ws/fs/calendar-manager/events.ics?calendar_ids=${calendarId}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`calendar ${calendarId} fetch failed: ${res.status}`);
+  return parseNoSchoolLabels(await res.text());
+}
+
+// The district calendar (SCHOOL_CALENDAR_ICS_URL) is the authoritative,
+// complete date list - every individual school's own calendar is checked
+// (see the comment on SCHOOL_CALENDAR_IDS) to be a subset of it. Individual
+// schools are fetched only to get that specific school's own wording for a
+// date it has an entry for (e.g. "Labor Day- No School" vs. the district's
+// generic "No School: Offices Closed"); `labels.district` is the fallback
+// for every date, always present, and for "Idea Center" (not a real
+// building - see SCHOOL_CALENDAR_IDS), the only label there is.
 async function buildNoSchoolDays() {
-  const res = await fetch(SCHOOL_CALENDAR_ICS_URL);
-  if (!res.ok) throw new Error(`school calendar fetch failed: ${res.status}`);
-  return parseNoSchoolDays(await res.text());
+  const districtLabels = await fetchCalendarLabels(new URL(SCHOOL_CALENDAR_ICS_URL).searchParams.get("calendar_ids"));
+  const labels = { district: districtLabels };
+  for (const [school, calendarId] of Object.entries(SCHOOL_CALENDAR_IDS)) {
+    try {
+      labels[school] = await fetchCalendarLabels(calendarId);
+    } catch (err) {
+      console.error(`Failed to fetch ${school}'s calendar (id ${calendarId}): ${err.message}`);
+    }
+  }
+  return { dates: Object.keys(districtLabels).sort(), labels };
 }
 
 async function main() {
@@ -318,7 +348,7 @@ async function main() {
   try {
     const noSchoolDays = await buildNoSchoolDays();
     await writeFile(new URL("no-school-days.json", OUT_DIR), JSON.stringify(noSchoolDays));
-    console.log(`Wrote ${noSchoolDays.length} no-school dates to no-school-days.json`);
+    console.log(`Wrote ${noSchoolDays.dates.length} no-school dates (${Object.keys(noSchoolDays.labels).length} calendars) to no-school-days.json`);
   } catch (err) {
     console.error(`Failed to build no-school-days.json: ${err.message}`);
   }

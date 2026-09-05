@@ -928,20 +928,33 @@ function toISODate(d) {
 // config.js) says which days actually have no school, distilled by
 // scripts/build-ical.js's daily cron into this small same-origin-CORS
 // JSON - that endpoint itself has no CORS headers, so the browser can't
-// fetch it directly. Cached for the page's lifetime (one request, however
-// many empty days get checked against it); resolves to an empty Set on
-// any failure (offline, not yet published, ICAL_BASE_URL unreachable)
-// rather than rejecting, so a day just falls back to fetchDayItems()'s
-// own heuristic instead of erroring.
+// fetch it directly. Shape: { dates: ["2026-09-07", ...], labels: {
+// district: {date: text}, [school]: {date: text}, ... } } - `dates` is the
+// complete, authoritative list (the district calendar); `labels[school]`
+// is that specific school's own wording for a date, when it has an entry
+// (see SCHOOL_CALENDAR_IDS's comment - not every school phrases every
+// no-school day the same way, or lists every one at all).
+//
+// Cached for the page's lifetime (one request, however many empty days get
+// checked against it); resolves to { dates: new Set(), labels: {} } on any
+// failure (offline, not yet published, ICAL_BASE_URL unreachable) rather
+// than rejecting, so a day just falls back to fetchDayItems()'s own
+// heuristic instead of erroring.
 let noSchoolDaysPromise = null;
 function fetchNoSchoolDays() {
   if (!noSchoolDaysPromise) {
     noSchoolDaysPromise = fetch(`${ICAL_BASE_URL}/no-school-days.json`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((dates) => new Set(dates))
-      .catch(() => new Set());
+      .then((res) => (res.ok ? res.json() : { dates: [], labels: {} }))
+      .then((data) => ({ dates: new Set(data.dates), labels: data.labels || {} }))
+      .catch(() => ({ dates: new Set(), labels: {} }));
   }
   return noSchoolDaysPromise;
+}
+
+// That specific school's own wording for a no-school date, falling back to
+// the district calendar's (always present for any date in `dates`).
+function noSchoolLabelFor(noSchoolDays, school, isoDate) {
+  return noSchoolDays.labels[school]?.[isoDate] || noSchoolDays.labels.district?.[isoDate];
 }
 
 // Computes the HTML for one menu on one date - shared by day view (one
@@ -987,10 +1000,22 @@ async function fetchDayItems(info, date) {
 
   if (dayItems.length === 0) {
     // First choice: the district's own calendar (see fetchNoSchoolDays())
-    // says definitively, not a guess, whether this is an actual day off.
+    // says definitively, not a guess, whether this is an actual day off -
+    // and, where available, that specific school's own reason for it.
     const noSchoolDays = await fetchNoSchoolDays();
-    if (noSchoolDays.has(toISODate(date))) {
-      return { kind: "empty", message: "No school today.", isNoSchoolDay: true };
+    const isoDate = toISODate(date);
+    if (noSchoolDays.dates.has(isoDate)) {
+      // Every stored label already says "no school" in some form (that's
+      // exactly what parseNoSchoolLabels() filtered on to collect it), so
+      // prefixing our own "No school today" would always double up on
+      // that - just show the label itself, generic fallback text only for
+      // the (shouldn't-happen) case where somehow no label exists at all.
+      const label = noSchoolLabelFor(noSchoolDays, info.school, isoDate);
+      return {
+        kind: "empty",
+        message: label ? `${label}.` : "No school today.",
+        isNoSchoolDay: true,
+      };
     }
     // Fallback: the menu API has no holiday/day-off flag at all, so absent
     // the calendar above there's no way to know *why* a day has no items -
@@ -1204,10 +1229,12 @@ async function computeMonthEntrees(info, date) {
   // month already has data, since that means this gap is intentional, not
   // pending (though not why - see the hasLaterItems comment in
   // fetchDayItems()). isNoSchoolDay is the stronger, confirmed case - the
-  // district's own calendar, not a guess - so it gets its own definitive
-  // label rather than just "No menu".
+  // district's (or that school's own) calendar, not a guess - so it reuses
+  // fetchDayItems()'s own message (the specific reason, e.g. "Labor Day-
+  // No School") instead of a generic "No menu", just without the trailing
+  // period to match this note's terser style ("Not scheduled" etc.).
   if (result.kind === "empty") {
-    if (result.isNoSchoolDay) return { note: "No school" };
+    if (result.isNoSchoolDay) return { note: result.message.replace(/\.$/, "") };
     return { note: result.hasLaterItems ? "No menu" : "No menu yet" };
   }
 

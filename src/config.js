@@ -76,7 +76,8 @@ export const ICAL_BASE_URL = "https://lindbergh-school-menus-unofficial.asset-da
 // Truman id 19, high school/Lindbergh HS id 18, Pre-K/ECE id 11), and in
 // every case its "No School ..." all-day events were a superset of that
 // school's own, with zero exceptions - so this one feed alone is enough to
-// know real no-school days without tracking every school's own id.
+// know which dates are real no-school days (see SCHOOL_CALENDAR_IDS below
+// for getting each individual school's own label for that day).
 //
 // Used only by scripts/build-ical.js (not app.js directly - this endpoint
 // has no CORS headers, confirmed with `curl -H "Origin: ..."`, so only a
@@ -84,6 +85,32 @@ export const ICAL_BASE_URL = "https://lindbergh-school-menus-unofficial.asset-da
 // alongside the .ics files for the app to fetch instead.
 export const SCHOOL_CALENDAR_ICS_URL =
   "https://www.lindberghschools.ws/fs/calendar-manager/events.ics?calendar_ids=4";
+
+// Every physical school's own calendar_id on that same shared backend -
+// found the same way as the district one (each school's own homepage
+// embeds a `data-calendar-ids=N` calendar widget). Checked directly
+// against the district calendar above: every one of these schools' own
+// "No School ..." dates is a subset of it, zero exceptions - so the
+// district feed remains the authoritative date list, and these are used
+// only to get that specific school's own wording for the day (e.g.
+// Lindbergh High's calendar says "Labor Day- No School" where the
+// district's just says "No School: Offices Closed") where it has an
+// entry, falling back to the district's label otherwise. No entry for
+// "Idea Center" - it's a program spanning several elementary schools by
+// day, not a building with its own calendar, so it always falls back to
+// the district's label.
+export const SCHOOL_CALENDAR_IDS = {
+  Concord: 8,
+  Crestwood: 9,
+  Dressel: 10,
+  Kennerly: 13,
+  Long: 14,
+  Sappington: 15,
+  Sperreng: 6,
+  Truman: 19,
+  "Lindbergh High School": 18,
+  ECE: 11,
+};
 
 // The variants every Idea Center menu gets split into. dayFilter is a
 // getDay() value (1=Mon..4=Thu) or null for "every day". Keep this in sync
