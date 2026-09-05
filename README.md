@@ -1,6 +1,6 @@
 # Lindbergh School Menus (Unofficial)
 
-**[jbtule.github.io/fix-lindbergh-school-menus](https://jbtule.github.io/fix-lindbergh-school-menus/)**
+**[tools.tuley.name/fix-lindbergh-school-menus](https://tools.tuley.name/fix-lindbergh-school-menus/)**
 · built with [Claude Code](https://claude.com/claude-code)
 
 A static, mobile-friendly menu viewer for Lindbergh School District (Missouri),
@@ -29,7 +29,11 @@ could stop working at any time.
   high school lunch's food-station format - see the caveat in
   `src/config.js`) vs. sides grouped by category, with **collapsible
   categories** (Vegetables/Fruits open by default, the rest collapsed) -
-  a global, persisted preference
+  a global, persisted preference. Flyers Club and ECE's Snack menu get the
+  same treatment under a **Snack** label instead, since their real food is
+  the whole meal, not a side (milk, condiments, and juice still stay
+  ordinary sides - see `SNACK_MEAL_NAMES`/`isSnackSideItem()` in
+  `src/config.js`)
 - **Allergen badges** per item (icon-only with tap/hover for the name by
   default; a full-text-label mode is a one-line flip in `src/app.js`),
   including derived **Vegetarian**/**Vegan** badges (vegan requires none
@@ -38,14 +42,30 @@ could stop working at any time.
   wheat, soy, sesame, each struck through when present, plus Vegetarian/
   Vegan, struck through when *absent* - that flags matching items and
   turns their allergen box red
-- A small **print** icon next to each menu's heading, printing that menu
-  one at a time as a clean category-by-day table - full detail (entrees,
-  sides, allergens), skipping any category you've collapsed on screen -
-  or a compact whole-month calendar (entree names only). Hidden when
-  running as a home-screen app, since standalone mode can't open a print
-  dialog
-- Installable to a phone's home screen (manifest + icons), and
-  auto-reloads itself when a new version is deployed
+- Knows real **no-school days** (holidays, in-service days, etc.) from the
+  district's own event calendar, and shows that specific school's own
+  wording for it where available - rather than a generic "no menu" for
+  every day nothing's published
+- Each menu's heading has an **Actions** menu (⋯) with:
+  - **Print** - that menu alone as a clean category-by-day table (full
+    detail: entrees, sides, allergens, skipping anything collapsed on
+    screen) or a compact whole-month calendar (entree names only). Hidden
+    when running as a home-screen app, since standalone mode can't open a
+    print dialog
+  - **Subscribe** - adds that menu as a live calendar in Apple Calendar,
+    Google Calendar, or Outlook, so it shows up alongside the rest of a
+    family's schedule and updates on its own (see "ical feeds" below)
+- **Installable** to a phone's home screen (manifest + icons) - a subtle
+  "Install" hint on mobile prompts a real one-tap install where the
+  browser supports it, or walks through the manual Add to Home Screen
+  steps on iOS Safari, which doesn't. Auto-reloads itself when a new
+  version is deployed
+- **Works offline, and skips the loading flash on repeat visits**: every
+  fetched menu, and the no-school calendar, is cached to `localStorage`.
+  A menu that's been viewed before paints instantly from that cache while
+  the live data loads quietly in the background (repainting only if
+  something changed); if the network fails entirely, the last-fetched
+  version keeps showing instead of an error (see `src/menu-api.js`)
 - Optional Google Translate widget, matching the language list seen on
   the district's own site - a one-line flip (`TRANSLATE_WIDGET_ENABLED`
   in `src/app.js`) to remove entirely. Printing gives an active translation a
@@ -67,11 +87,20 @@ through its JS bundles turned up:
 
 Both have wide-open CORS (they reflect whatever `Origin` calls them), so
 this site calls them directly from the browser - no backend, no API key,
-just static files on GitHub Pages. `src/config.js` has the full story of how
-each menu-type id was found, plus notes on data quirks encountered along
-the way (a blank-category gap in their data, a stale duplicate menu-type
-that got dropped, why high-school lunch's "food station" split is
-best-effort only, etc.).
+just static files on GitHub Pages. `src/config.js` has the full story of
+how each menu-type id was found, plus notes on data quirks encountered
+along the way (a blank-category gap in their data, a stale duplicate
+menu-type that got dropped, why high-school lunch's "food station" split
+is best-effort only, etc.).
+
+Neither menu API has a holiday/day-off flag, so knowing an empty day is a
+real no-school day (rather than just nothing published yet) comes from a
+third source: the district's own event calendar
+(`www.lindberghschools.ws`, a separate Finalsite-CMS-backed site).
+Unlike the menu APIs, that one has no CORS headers at all, so it can't be
+fetched from the browser directly - the daily ical-building cron (see
+"ical feeds" below) fetches it server-side instead and publishes a small
+same-origin JSON summary the app reads back.
 
 **This is not a published, supported integration.** The vendor could
 change the API shape or lock down CORS at any time without notice, which
@@ -116,14 +145,27 @@ repo's Settings -> Pages -> Build and deployment -> Source to be set to
 `src/menu-api.js` (the vendor fetch code) and `src/config.js` (the district's menu
 tree) are shared with `scripts/build-ical.js`, a Node script that builds a
 `.ics` calendar per menu - plus one per combination of Idea Center
-day-variants (e.g. "Tuesdays + Thursdays") - into `dist/ical/`. A scheduled
-GitHub Action (`.github/workflows/build-ical.yml`) runs it daily and
-deploys the output to Cloudflare Pages. This part *does* need Node (≥18)
-and its one dependency:
+day-variants (e.g. "Tuesdays + Thursdays") - into `dist/ical/`, along with
+`no-school-days.json` (see "How it works" above). Each event's
+description lists the day's entree(s) with allergens, then every side
+bulleted underneath; Flyers Club/ECE Snack get the same Entree-level
+treatment the app gives them on screen, rather than being listed as
+sides. A scheduled GitHub Action (`.github/workflows/build-ical.yml`)
+runs it daily and deploys the output to Cloudflare Pages at
+`lindbergh-school-menus-unofficial.asset-data.stream`, which is what the
+app's Subscribe feature links to (see `ICAL_BASE_URL` in `src/config.js`).
+This part *does* need Node (≥18) and its one dependency:
 
 ```sh
 npm install
 npm run build-ical
+```
+
+To deploy the built calendars outside the scheduled cron (rare - the
+daily run already keeps them current):
+
+```sh
+npx wrangler pages deploy dist/ical --project-name=lindbergh-school-menus-unofficial
 ```
 
 ## License
