@@ -6,9 +6,13 @@
     "node": ">=18"
   },
   "scripts": {
-    "build-ical": "node scripts/build-ical.js"
+    "build-ical": "node scripts/build-ical.js",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "ics": "^3.12.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.55.0"
   }
 }

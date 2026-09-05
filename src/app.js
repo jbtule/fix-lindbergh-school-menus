@@ -29,6 +29,12 @@ import {
   writeLocalCache,
 } from "./menu-api.js?v=dead";
 import { icsSlugFor } from "./ical-naming.js?v=dead";
+import {
+  splitEntreesAndSides,
+  groupEntreeRuns,
+  SIDE_CATEGORY_LABELS,
+  orderSideCategories,
+} from "./menu-logic.js?v=dead";
 
 const STORAGE_KEY = "lsm.selectedMenus";
 const EXCLUDE_STORAGE_KEY = "lsm.excludedAllergens";
@@ -785,81 +791,11 @@ function sortItemsForDay(items) {
   });
 }
 
-// Splits a day's items (in original API order - order matters here) into
-// station-shaped chunks: one or more Entrees, plus the sides that follow
-// them before the next Entree run starts (that station's own sides - e.g.
-// fries with a burger combo). A "Shared Items" item (category Ancillary)
-// marks the end of the per-station portion - anything after it is common
-// across every station (the salad bar, milk, condiments) and comes back
-// separately as `commonSides` rather than attached to the last group.
-// Used only for High Schools - see the comment where this is called in
-// renderOneMenu. With no Shared Items marker (every other menu, since
-// they never interleave sides between entrees), this collapses to a
-// single group holding all the sides, identical to the old flat layout.
-function groupEntreeRuns(dayItemsInOrder, menuGroup) {
-  const sentinelIndex = dayItemsInOrder.findIndex(
-    (it) => it.product.category === "Ancillary" && it.product.name.trim() === "Shared Items"
-  );
-  const stationItems = sentinelIndex === -1 ? dayItemsInOrder : dayItemsInOrder.slice(0, sentinelIndex);
-  const commonSides = sentinelIndex === -1 ? [] : dayItemsInOrder.slice(sentinelIndex + 1);
-
-  const groups = [];
-  let current = null;
-  // Tracked for the boundary hints below: the previous Entrees item, and
-  // whether any sides sat between it and the item now being placed. Not the
-  // same as current.sides.length - that keeps accumulating across a group,
-  // this resets at every entree.
-  let prevEntree = null;
-  let sidesSincePrevEntree = 0;
-  for (const it of stationItems) {
-    if (it.product.category === "Entrees") {
-      // --- station-boundaries.js hook (optional) -----------------------
-      // Ask the frozen lookup tables whether these two adjacent entrees are
-      // actually in different stations. Returns null when it has no opinion,
-      // which is the common case, and then the original ordering rule below
-      // decides exactly as it always did. Delete this block (and keep the
-      // `startNew` line as `!current || current.sides.length > 0`) to remove
-      // the feature entirely.
-      const hint =
-        typeof stationBoundaryHint === "function" && prevEntree
-          ? stationBoundaryHint(menuGroup, prevEntree.product, it.product, sidesSincePrevEntree > 0)
-          : null;
-      // -----------------------------------------------------------------
-      const startNew =
-        !current || (hint === null ? current.sides.length > 0 : hint);
-      if (startNew) {
-        current = { entrees: [], sides: [] };
-        groups.push(current);
-      }
-      current.entrees.push(it);
-      prevEntree = it;
-      sidesSincePrevEntree = 0;
-    } else if (current) {
-      current.sides.push(it);
-      sidesSincePrevEntree++;
-    }
-  }
-  // A day with no Entrees-category item at all (same case the non-high-
-  // school branch below guards against - a snack-only menu is often just
-  // one Grain-category item) never starts a group above, silently
-  // dropping every item in stationItems. One sides-only group instead.
-  if (groups.length === 0 && stationItems.length) {
-    groups.push({ entrees: [], sides: stationItems });
-  }
-  return { groups, commonSides };
-}
-
-// Display order for the district's own non-entree categories. Anything not
-// listed here (including the occasional blank category - a gap in their
-// data, e.g. "Mayo Dispenser") is grouped under "Other" at the end.
-const SIDE_CATEGORY_ORDER = ["Vegetable", "Fruit", "Grain", "Milk", "Condiment"];
-const SIDE_CATEGORY_LABELS = {
-  Vegetable: "Vegetables",
-  Fruit: "Fruits",
-  Milk: "Milk",
-  Condiment: "Condiments",
-  Grain: "Grains",
-};
+// groupEntreeRuns() (High Schools' food-station split), SIDE_CATEGORY_LABELS,
+// and orderSideCategories() now live in src/menu-logic.js - pulled out
+// specifically so their logic could be unit-tested (see
+// test/menu-logic.test.js) without any DOM/browser dependency. See that
+// file for the fuller explanation of each.
 
 function renderSideGroups(sideItems) {
   if (!sideItems.length) return "";
@@ -869,10 +805,7 @@ function renderSideGroups(sideItems) {
     if (!byCategory.has(cat)) byCategory.set(cat, []);
     byCategory.get(cat).push(it);
   }
-  const orderedCats = [
-    ...SIDE_CATEGORY_ORDER.filter((c) => byCategory.has(c)),
-    ...[...byCategory.keys()].filter((c) => !SIDE_CATEGORY_ORDER.includes(c)),
-  ];
+  const orderedCats = orderSideCategories([...byCategory.keys()]);
   const rows = [];
   for (const cat of orderedCats) {
     const label = SIDE_CATEGORY_LABELS[cat] || cat || "Other";
@@ -1235,37 +1168,14 @@ function renderDayHtml(info, date, dayItems) {
   // under-split those - not perfect, but never worse than one flat box.
   // Deliberately scoped to High Schools only, rather than relying on it
   // being a no-op everywhere else.
+  // Grouping itself lives in src/menu-logic.js (see splitEntreesAndSides()/
+  // groupEntreeRuns() there for the full explanation of both - including
+  // the sides-only-day and Snack-menu special cases) so it's unit-testable
+  // without any DOM dependency.
   const { groups: entreeGroups, commonSides } =
     info.group === "High Schools"
       ? groupEntreeRuns(dayItems, info.group)
-      : {
-          // Every other menu: exactly what it's always been - one group
-          // holding all the entrees, its sides right below it, nothing
-          // held back as "common". Keyed on having ANY item at all, not
-          // specifically an entree - a sides-only day (a Flyers Club/Snack
-          // menu is often just one Grain-category item, no Entrees-category
-          // product at all) was silently dropping its items entirely, since
-          // this used to require entrees.length > 0 just to keep the group.
-          //
-          // Flyers Club/Snack menus (see SNACK_MEAL_NAMES) are special-cased
-          // further: their real food is the whole meal, not a side that
-          // comes along with a "real" entree, so it counts as an entree
-          // here rather than being filtered by category. Milk, condiments,
-          // and juice (see isSnackSideItem()) still ride along as ordinary
-          // sides even here - ECE's Snack menu pairs those with its
-          // actual food, and they aren't "the snack" the way that food is.
-          groups: (() => {
-            const isSnackMenu = SNACK_MEAL_NAMES.has(info.name);
-            const entrees = isSnackMenu
-              ? dayItems.filter((it) => !isSnackSideItem(it.product))
-              : dayItems.filter((it) => it.product.category === "Entrees");
-            const sides = isSnackMenu
-              ? dayItems.filter((it) => isSnackSideItem(it.product))
-              : dayItems.filter((it) => it.product.category !== "Entrees");
-            return entrees.length || sides.length ? [{ entrees, sides }] : [];
-          })(),
-          commonSides: [],
-        };
+      : { groups: splitEntreesAndSides(info.name, dayItems), commonSides: [] };
 
   // Each station's own sides (fries with a combo, toppings for a build-
   // your-own, etc.) render right under its Entree box, not pooled with
@@ -1706,10 +1616,7 @@ async function printWeek(group) {
     if (r.byCategory) for (const cat of r.byCategory.keys()) categoriesPresent.add(cat);
   }
   categoriesPresent.delete("Entrees");
-  const sideCats = [
-    ...SIDE_CATEGORY_ORDER.filter((c) => categoriesPresent.has(c)),
-    ...[...categoriesPresent].filter((c) => !SIDE_CATEGORY_ORDER.includes(c)),
-  ].filter((c) => !isCategoryCollapsed(c));
+  const sideCats = orderSideCategories([...categoriesPresent]).filter((c) => !isCategoryCollapsed(c));
   const rows = ["Entrees", ...sideCats];
   // Flyers Club/Snack (see SNACK_MEAL_NAMES): computeDayItemsForPrint()
   // already remapped its one item into the "Entrees" row - label that row

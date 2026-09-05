@@ -131,6 +131,25 @@ is a placeholder - real cache-busting hashes and `version.js`'s content are
 generated at deploy time (see `.github/workflows/deploy-pages.yml`), not
 something to worry about locally.
 
+## Tests
+
+```sh
+npm test
+```
+
+Runs `test/*.test.js` (Node's built-in `node:test`) - unit tests for the
+pure category-splitting/grouping/ordering logic in `src/menu-logic.js` and
+`src/config.js`, no DOM or network involved. This is where most of the
+rendering bugs found so far actually lived (a day with no Entrees-category
+item silently losing all its items, the Snack/juice/milk category edge
+cases), so it's the first thing to run after touching that logic.
+
+`test/manual/` has a few Playwright scripts for everything `npm test`
+doesn't cover - actual rendering, the persisted-cache/offline behavior,
+the built `.ics` output - against a real running dev server and the live
+vendor API. Not part of `npm test` or CI (real menu content changes
+daily); see `test/manual/README.md` for how to run them.
+
 ## Deployment
 
 Pushing to `main` triggers `.github/workflows/deploy-pages.yml`, which
