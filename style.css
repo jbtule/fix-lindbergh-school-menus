@@ -39,6 +39,21 @@
 
 * { box-sizing: border-box; }
 
+/* The browser's own [hidden] { display: none } lives in the UA stylesheet
+   at the same specificity as any single-class author rule (0,1,0) - so
+   whichever comes later in the cascade wins, and author CSS always comes
+   after the UA sheet. Every component here that sets its own `display`
+   (flex, in every case so far) was therefore able to silently override
+   .hidden = true and stay visible - found independently four times
+   (.picker, .printPopover, .printPopoverBtn, .pickerToggle) before
+   settling on one global, ahead-of-everything-else fix instead of
+   continuing to patch it component by component. !important is the
+   standard, MDN-recommended remedy for this exact interaction - nothing
+   here has a legitimate reason to need [hidden] overridden. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -111,6 +126,33 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+/* Its own row below .topbarButtons rather than a 4th pill in it - same
+   subtle-text-link look as .disclaimerLink, just its own centered line
+   since this sentence is much longer than "disclaimer". */
+.installHint {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  margin: 0;
+  padding: 0.4rem 1rem;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--muted);
+  text-decoration: underline;
+  text-align: center;
+  cursor: pointer;
+}
+
+/* Desktop already has its own discoverable, browser-native install
+   affordance (an address-bar icon on Chrome/Edge) - this hint is only
+   worth the space on a phone-sized screen. */
+@media (min-width: 700px) {
+  .installHint {
+    display: none;
+  }
+}
+
 /* Lives inside #languagePicker's pickerBody - the widget fills itself in
    once loaded (see loadTranslateWidget() in app.js). */
 #google_translate_element {
@@ -177,13 +219,6 @@ body {
   z-index: 30;
   display: flex;
   flex-direction: column;
-}
-
-/* Author CSS always beats the browser's built-in [hidden] styling, so
-   `.picker { display: flex }` above was overriding closePicker()'s
-   `picker.hidden = true` and leaving the panel visible no matter what. */
-.picker[hidden] {
-  display: none;
 }
 
 /* Full-height (top:0 to bottom:0) is the right call on a phone regardless
@@ -339,10 +374,6 @@ body {
   display: flex;
   flex-direction: column;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
-}
-
-.modal[hidden] {
-  display: none;
 }
 
 .modalBody {
@@ -880,14 +911,6 @@ body:not(.week-view) .menuSection {
   overflow: hidden;
 }
 
-/* Author CSS always beats the UA's [hidden] { display: none }, regardless
-   of specificity - the bare .picker[hidden] rule above hit this same bug
-   first. Without this, .printPopover's own `display: flex` wins and the
-   popover shows up on load, before anything's ever been clicked. */
-.printPopover[hidden] {
-  display: none;
-}
-
 .printPopoverBtn {
   display: flex;
   flex-direction: column;
@@ -985,10 +1008,6 @@ body:not(.week-view) .menuSection {
   background: var(--accent);
   color: var(--accent-fg);
   font-size: 0.9rem;
-}
-
-.printPreparingBanner[hidden] {
-  display: none;
 }
 
 .printSpinner {

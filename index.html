@@ -33,6 +33,19 @@
     </h1>
   </header>
 
+  <!-- Sits right above the Menus/Dietary/Translate pills, no visual divider
+       from them (see .installHint - deliberately no border) - a 4th pill
+       there (even icon-only) crowded/wrapped that row for something most
+       visitors won't act on, so this is just a line of subtle, clickable,
+       mobile-only text instead (desktop already has its own discoverable
+       browser-native install affordance - see .installHint's media
+       query). Hidden at startup unless updateInstallHint() (app.js) finds
+       something worth offering (not already installed, and either a
+       native install prompt or iOS's manual steps apply). -->
+  <button id="installHint" class="installHint" aria-controls="installPanel" hidden>
+    💡 Hint: you can add this page to your Home Screen
+  </button>
+
   <!-- Deliberately not part of .topbar (which stays sticky) - only the
        title should stay pinned while scrolling, not this row. -->
   <div class="topbarButtons">
@@ -184,6 +197,23 @@
     </div>
   </aside>
   <div id="subscribePanelScrim" class="pickerScrim" hidden></div>
+
+  <aside id="installPanel" class="picker picker--compact" hidden>
+    <div class="pickerHeader">
+      <h2>Add to Home Screen</h2>
+      <button id="installPanelClose" class="iconBtn" aria-label="Close">&times;</button>
+    </div>
+    <div class="pickerBody">
+      <!-- Text filled in by openInstallPanel() (app.js) - differs by
+           platform (a real "Install" button below vs. iOS's manual
+           Share-sheet steps, which has no button at all). -->
+      <p id="installPanelBody"></p>
+    </div>
+    <div class="pickerFooter">
+      <button id="installPanelGo" class="primaryBtn">Install</button>
+    </div>
+  </aside>
+  <div id="installPanelScrim" class="pickerScrim" hidden></div>
 
   <div id="disclaimerScrim" class="pickerScrim" hidden></div>
   <div id="disclaimerModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle" hidden>

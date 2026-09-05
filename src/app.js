@@ -301,16 +301,19 @@ function closeLanguagePicker() {
   setPanelOpen("languagePicker", "languagePickerScrim", "languageToggle", false);
 }
 
-// Home-screen ("standalone") web apps strip out all browser chrome, and
-// window.print() has no print sheet left to attach to there - iOS in
-// particular just silently no-ops it rather than erroring. There's no way
-// to feature-detect that failure directly, so this heuristic (are we
-// running standalone at all?) decides whether the per-section print icon
-// even shows up - see renderSections().
-const CAN_PRINT = !(
-  window.matchMedia("(display-mode: standalone)").matches ||
-  window.navigator.standalone === true
-);
+// Home-screen ("standalone") web app - no way to feature-detect this
+// directly, so it's a heuristic based on how the page is currently being
+// displayed. Two consumers: CAN_PRINT below, and updateInstallHint()
+// further down.
+const IS_STANDALONE =
+  window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+
+// Home-screen web apps strip out all browser chrome, and window.print()
+// has no print sheet left to attach to there - iOS in particular just
+// silently no-ops it rather than erroring. There's no way to feature-detect
+// that failure directly, so IS_STANDALONE decides whether the Print entry
+// in the Actions popover even shows up - see openActionMenu().
+const CAN_PRINT = !IS_STANDALONE;
 
 // One shared small popover (positioned under whichever section's Actions
 // icon was tapped) rather than one per menu section, since only one can
@@ -418,6 +421,62 @@ function openSubscribePanel(group) {
 function closeSubscribePanel() {
   document.getElementById("subscribePanel").hidden = true;
   document.getElementById("subscribePanelScrim").hidden = true;
+}
+
+// ---------- Install (Add to Home Screen) ----------
+
+// No cross-browser API to ask "is this installable" or to trigger the
+// install UI directly. Chrome/Edge/Android fire beforeinstallprompt when
+// the page qualifies - intercepted and stashed here, since browsers only
+// allow calling .prompt() on it later, in response to an actual user
+// gesture (the panel's own button), not immediately on capture. Safari
+// never fires this event at all - not "hasn't yet", never - so iOS gets
+// detected separately below and shown manual instructions instead.
+let deferredInstallPrompt = null;
+const IS_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  updateInstallHint();
+});
+
+// Covers installing via the browser's own menu instead of this button.
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  updateInstallHint();
+});
+
+// Nothing to offer once already installed. Otherwise: show it if a real
+// install prompt is available (Chrome/Edge/Android), or on iOS regardless
+// (no prompt event ever fires there, but "Share > Add to Home Screen" is
+// always an option) - anywhere else, nothing useful to tell that visitor,
+// so it stays hidden rather than showing a dead end.
+function updateInstallHint() {
+  document.getElementById("installHint").hidden = IS_STANDALONE || !(deferredInstallPrompt || IS_IOS);
+}
+
+function openInstallPanel() {
+  const body = document.getElementById("installPanelBody");
+  const goBtn = document.getElementById("installPanelGo");
+  const benefit = "Get quick access - no address bar, its own icon on your Home Screen.";
+  if (deferredInstallPrompt) {
+    body.textContent = benefit;
+    goBtn.textContent = "Install";
+  } else {
+    // iOS - no API to trigger this, only Safari's own Share sheet can, so
+    // there's nothing for the button to actually do here but close the
+    // panel once they've read the steps.
+    body.textContent = `Tap the Share icon, then "Add to Home Screen". ${benefit}`;
+    goBtn.textContent = "Understood";
+  }
+  document.getElementById("installPanel").hidden = false;
+  document.getElementById("installPanelScrim").hidden = false;
+}
+
+function closeInstallPanel() {
+  document.getElementById("installPanel").hidden = true;
+  document.getElementById("installPanelScrim").hidden = true;
 }
 
 // Same single-shared-instance approach as the print popover above: one
@@ -1762,6 +1821,22 @@ for (const radio of document.querySelectorAll('input[name="calendarApp"]')) {
 document.getElementById("subscribePanelClose").addEventListener("click", closeSubscribePanel);
 document.getElementById("subscribePanelScrim").addEventListener("click", closeSubscribePanel);
 
+document.getElementById("installHint").addEventListener("click", openInstallPanel);
+document.getElementById("installPanelClose").addEventListener("click", closeInstallPanel);
+document.getElementById("installPanelScrim").addEventListener("click", closeInstallPanel);
+document.getElementById("installPanelGo").addEventListener("click", async () => {
+  if (!deferredInstallPrompt) {
+    // iOS - nothing to do but dismiss (the button reads "Understood" here).
+    closeInstallPanel();
+    return;
+  }
+  closeInstallPanel();
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  updateInstallHint();
+});
+
 // Delegated: the (i) buttons are re-created on every render.
 document.addEventListener("click", (e) => {
   const btn = e.target.closest(".stationInfo");
@@ -1891,6 +1966,7 @@ updateViewModeButtons();
 updateBodyViewModeClass();
 renderSections();
 loadTranslateWidget();
+updateInstallHint();
 
 // Keeps a `--<name>-height` custom property in sync with an element's
 // actual rendered height, for CSS elsewhere that stacks sticky elements
