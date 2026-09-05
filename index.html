@@ -112,7 +112,11 @@
     <button id="actionPopoverPrint" class="printPopoverBtn">
       🖨️ Print
     </button>
-    <button id="actionPopoverSubscribe" class="printPopoverBtn">
+    <!-- notranslate/translate="no": Google's Website Translator would
+         otherwise mangle "Calendar Subscribe" and (worse) #subscribePanel
+         below - calendar app names (Apple/Google/Outlook) and the .ics
+         URL itself are never meant to be translated. -->
+    <button id="actionPopoverSubscribe" class="printPopoverBtn notranslate" translate="no">
       📅 Calendar Subscribe
     </button>
   </div>
@@ -145,7 +149,10 @@
   </aside>
   <div id="printPanelScrim" class="pickerScrim" hidden></div>
 
-  <aside id="subscribePanel" class="picker" hidden>
+  <!-- notranslate/translate="no" - see the comment on #actionPopoverSubscribe
+       above; nothing in here (calendar app names, the .ics URL) should
+       ever be run through Google's Website Translator. -->
+  <aside id="subscribePanel" class="picker notranslate" translate="no" hidden>
     <div class="pickerHeader">
       <h2>Subscribe to calendar</h2>
       <button id="subscribePanelClose" class="iconBtn" aria-label="Close">&times;</button>
@@ -153,7 +160,7 @@
     <div class="pickerBody">
       <p>
         Add <strong id="subscribeMenuName"></strong> to your calendar app -
-        it stays up to date on its own, no need to come back and re-print.
+        it stays up to date on its own, no need to keep checking back here.
       </p>
       <label class="radioOption">
         <input type="radio" name="calendarApp" value="apple" checked />
