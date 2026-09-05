@@ -19,7 +19,13 @@ import {
   SNACK_MEAL_NAMES,
   isSnackSideItem,
 } from "./config.js?v=dead";
-import { fetchMonthsList, fetchDocIdForDate, fetchMenuItems } from "./menu-api.js?v=dead";
+import {
+  fetchMonthsList,
+  fetchDocIdForDate,
+  fetchMenuItems,
+  readLocalCache,
+  writeLocalCache,
+} from "./menu-api.js?v=dead";
 import { icsSlugFor } from "./ical-naming.js?v=dead";
 
 const STORAGE_KEY = "lsm.selectedMenus";
@@ -1013,17 +1019,32 @@ function toISODate(d) {
 // no-school day the same way, or lists every one at all).
 //
 // Cached for the page's lifetime (one request, however many empty days get
-// checked against it); resolves to { dates: new Set(), labels: {} } on any
-// failure (offline, not yet published, ICAL_BASE_URL unreachable) rather
-// than rejecting, so a day just falls back to fetchDayItems()'s own
-// heuristic instead of erroring.
+// checked against it), with a persisted fallback underneath that (see
+// readLocalCache()/writeLocalCache() in menu-api.js): a fresh load that
+// fails here - offline, ICAL_BASE_URL unreachable - still gets the last
+// successfully fetched no-school list instead of treating every empty day
+// as unexplained. Only when nothing's ever been cached does this fall all
+// the way back to { dates: new Set(), labels: {} }, which just leaves a
+// day to fetchDayItems()'s own weaker heuristic instead of erroring.
 let noSchoolDaysPromise = null;
+const NO_SCHOOL_DAYS_CACHE_KEY = "noSchoolDays";
 function fetchNoSchoolDays() {
   if (!noSchoolDaysPromise) {
     noSchoolDaysPromise = fetch(`${ICAL_BASE_URL}/no-school-days.json`)
-      .then((res) => (res.ok ? res.json() : { dates: [], labels: {} }))
-      .then((data) => ({ dates: new Set(data.dates), labels: data.labels || {} }))
-      .catch(() => ({ dates: new Set(), labels: {} }));
+      .then((res) => {
+        if (!res.ok) throw new Error(`no-school-days.json failed: ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        writeLocalCache(NO_SCHOOL_DAYS_CACHE_KEY, data);
+        return { dates: new Set(data.dates), labels: data.labels || {} };
+      })
+      .catch(() => {
+        const cached = readLocalCache(NO_SCHOOL_DAYS_CACHE_KEY);
+        return cached
+          ? { dates: new Set(cached.dates), labels: cached.labels || {} }
+          : { dates: new Set(), labels: {} };
+      });
   }
   return noSchoolDaysPromise;
 }
