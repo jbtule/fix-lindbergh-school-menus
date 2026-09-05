@@ -16,6 +16,7 @@ import {
   IDEA_CENTER_GRADE_BY_WEEKDAY,
   ICAL_BASE_URL,
   mealEmoji,
+  SNACK_MEAL_NAMES,
 } from "./config.js?v=dead";
 import { fetchMonthsList, fetchDocIdForDate, fetchMenuItems } from "./menu-api.js?v=dead";
 import { icsSlugFor } from "./ical-naming.js?v=dead";
@@ -829,6 +830,13 @@ function groupEntreeRuns(dayItemsInOrder, menuGroup) {
       sidesSincePrevEntree++;
     }
   }
+  // A day with no Entrees-category item at all (same case the non-high-
+  // school branch below guards against - a snack-only menu is often just
+  // one Grain-category item) never starts a group above, silently
+  // dropping every item in stationItems. One sides-only group instead.
+  if (groups.length === 0 && stationItems.length) {
+    groups.push({ entrees: [], sides: stationItems });
+  }
   return { groups, commonSides };
 }
 
@@ -1147,11 +1155,25 @@ async function computeDayHtml(info, date) {
       : {
           // Every other menu: exactly what it's always been - one group
           // holding all the entrees, its sides right below it, nothing
-          // held back as "common".
+          // held back as "common". Keyed on having ANY item at all, not
+          // specifically an entree - a sides-only day (a Flyers Club/Snack
+          // menu is often just one Grain-category item, no Entrees-category
+          // product at all) was silently dropping its items entirely, since
+          // this used to require entrees.length > 0 just to keep the group.
+          //
+          // Flyers Club/Snack menus (see SNACK_MEAL_NAMES) are special-cased
+          // further: their one item is the whole meal, not a side that comes
+          // along with a "real" entree, so every item counts as an entree
+          // here rather than being filtered by category.
           groups: (() => {
-            const entrees = dayItems.filter((it) => it.product.category === "Entrees");
-            const sides = dayItems.filter((it) => it.product.category !== "Entrees");
-            return entrees.length ? [{ entrees, sides }] : [];
+            const isSnackMenu = SNACK_MEAL_NAMES.has(info.name);
+            const entrees = isSnackMenu
+              ? dayItems
+              : dayItems.filter((it) => it.product.category === "Entrees");
+            const sides = isSnackMenu
+              ? []
+              : dayItems.filter((it) => it.product.category !== "Entrees");
+            return entrees.length || sides.length ? [{ entrees, sides }] : [];
           })(),
           commonSides: [],
         };
@@ -1178,10 +1200,14 @@ async function computeDayHtml(info, date) {
     .map((group, groupIndex) => {
       const entrees = sortItemsForDay(group.entrees);
       const sides = sortItemsForDay(group.sides);
+      // Sides-only day (see the comment above on keeping this group at
+      // all) - nothing to label as an "Entree" choice, so skip that box
+      // and just show whatever items there are.
+      if (entrees.length === 0) return renderSideGroups(sides);
       // A named box gets an (i) explaining that the name is inferred; an
       // unnamed one keeps the plain "Entree" label with nothing to explain.
       const stationName = stationNames[groupIndex];
-      const label = stationName || "Entree";
+      const label = stationName || (SNACK_MEAL_NAMES.has(info.name) ? "Snack" : "Entree");
       const infoBtn = stationName
         ? `<button type="button" class="stationInfo" aria-label="About station names">i</button>`
         : "";
@@ -1306,7 +1332,12 @@ async function computeMonthEntrees(info, date) {
     return { note: result.hasLaterItems ? "No menu" : "No menu yet" };
   }
 
-  const entrees = result.items.filter((it) => it.product.category === "Entrees");
+  // Flyers Club/Snack (see SNACK_MEAL_NAMES): the one item published is the
+  // whole meal, never filed under "Entrees" - treat every item as an entree
+  // rather than filtering by category, same as computeDayHtml() above.
+  const entrees = SNACK_MEAL_NAMES.has(info.name)
+    ? result.items
+    : result.items.filter((it) => it.product.category === "Entrees");
   if (entrees.length === 0) return { note: "No menu yet" };
   return { items: sortItemsForDay(entrees) };
 }
@@ -1350,9 +1381,14 @@ function printItemLine(it) {
 async function computeDayItemsForPrint(info, date) {
   const result = await fetchDayItems(info, date);
   if (result.kind) return { note: result.message };
+  // Flyers Club/Snack (see SNACK_MEAL_NAMES): remap every item's row to
+  // "Entrees" so it lands in the print table's always-first row rather than
+  // whatever side category the district actually filed it under - matches
+  // the on-screen treatment in computeDayHtml().
+  const isSnackMenu = SNACK_MEAL_NAMES.has(info.name);
   const byCategory = new Map();
   for (const it of result.items) {
-    const cat = it.product.category || "";
+    const cat = isSnackMenu ? "Entrees" : it.product.category || "";
     if (!byCategory.has(cat)) byCategory.set(cat, []);
     byCategory.get(cat).push(it);
   }
@@ -1557,6 +1593,10 @@ async function printWeek(group) {
     ...[...categoriesPresent].filter((c) => !SIDE_CATEGORY_ORDER.includes(c)),
   ].filter((c) => !isCategoryCollapsed(c));
   const rows = ["Entrees", ...sideCats];
+  // Flyers Club/Snack (see SNACK_MEAL_NAMES): computeDayItemsForPrint()
+  // already remapped its one item into the "Entrees" row - label that row
+  // "Snack" here to match, rather than the generic "Entree".
+  const isSnackMenu = SNACK_MEAL_NAMES.has(group.name);
 
   const headerRow = `
     <tr>
@@ -1577,7 +1617,7 @@ async function printWeek(group) {
 
   const bodyRows = rows
     .map((cat) => {
-      const label = cat === "Entrees" ? "Entree" : SIDE_CATEGORY_LABELS[cat] || cat || "Other";
+      const label = cat === "Entrees" ? (isSnackMenu ? "Snack" : "Entree") : SIDE_CATEGORY_LABELS[cat] || cat || "Other";
       const cells = dayResults
         .map((r) => {
           if (r.note) return cat === "Entrees" ? `<td class="printWeekNote">${escapeHtml(r.note)}</td>` : "<td></td>";

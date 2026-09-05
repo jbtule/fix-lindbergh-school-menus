@@ -16,6 +16,7 @@ import {
   SCHOOL_CALENDAR_ICS_URL,
   SCHOOL_CALENDAR_IDS,
   mealEmoji,
+  SNACK_MEAL_NAMES,
 } from "../src/config.js";
 import { fetchMonthsList, fetchMenuItems } from "../src/menu-api.js";
 import { icsSlugFor } from "../src/ical-naming.js";
@@ -53,6 +54,10 @@ function buildTargets() {
         slug: icsSlugFor({ name: info.name, school: info.school, apiId, hasFullWeek: true, specificDays: new Set() }),
         title: `${info.school} - ${info.name}`,
         emoji: mealEmoji(info.name),
+        // See SNACK_MEAL_NAMES in config.js - Idea Center never has a
+        // Flyers Club/Snack menu, so this only ever applies here, not in
+        // the Idea Center branch below.
+        isSnackMenu: SNACK_MEAL_NAMES.has(info.name),
         apiId,
         weekdays: null,
       });
@@ -143,7 +148,7 @@ function allergensFor(product) {
 // allergen line where it has one. Deliberately simpler than the web app's
 // grouped/categorized rendering (renderSideGroups() etc. in app.js) - a
 // calendar description doesn't need collapsible sections, just a quick read.
-function describeDay(items) {
+function describeDay(items, isSnackMenu) {
   // No number of spaces reads as "indented" consistently - a space's
   // rendered width is tied to the font, so any whitespace-only attempt at
   // alignment looks different (and in a proportional font, much narrower
@@ -155,8 +160,13 @@ function describeDay(items) {
     return allergens.length ? `${prefix}${it.product.name}\n└ Allergens: ${allergens.join(", ")}` : `${prefix}${it.product.name}`;
   };
 
-  const entrees = items.filter((it) => it.product.category === "Entrees" && it.product.name);
-  const sides = items.filter((it) => it.product.category !== "Entrees" && it.product.name);
+  // Flyers Club/Snack (see SNACK_MEAL_NAMES): the one published item is the
+  // whole meal, filed under a side category, never "Entrees" - give it the
+  // same 🍽 treatment as a real entree instead of burying it under "Sides:".
+  const entrees = isSnackMenu
+    ? items.filter((it) => it.product.name)
+    : items.filter((it) => it.product.category === "Entrees" && it.product.name);
+  const sides = isSnackMenu ? [] : items.filter((it) => it.product.category !== "Entrees" && it.product.name);
 
   const blocks = entrees.map((it) => withAllergenLine("🍽 ", it));
   if (sides.length) {
@@ -236,7 +246,7 @@ async function buildCalendar(target) {
     for (const [day, dayItems] of byDay) {
       const date = new Date(year, month, day);
       if (target.weekdays && !target.weekdays.includes(date.getDay())) continue;
-      const description = describeDay(dayItems);
+      const description = describeDay(dayItems, target.isSnackMenu);
       if (!description) continue;
       // A combo calendar's own title lists every grade it covers (e.g.
       // "5th Grade + 4th Grade"), but any one day only belongs to one of
