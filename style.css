@@ -186,6 +186,38 @@ body {
   display: none;
 }
 
+/* Full-height (top:0 to bottom:0) is the right call on a phone regardless
+   of which panel it is - Print and Calendar Subscribe stay full-height
+   there too, same as Menus/Dietary/Translate, matching the site's one
+   consistent "panel slides in from the edge" mobile pattern.
+   Content-sized shrinking is a desktop-only concern (see the media query
+   below): full-height there is what strands a short panel's footer
+   button far below its couple of lines of content - a gap barely
+   noticeable on a phone's shorter viewport, a real one on a tall desktop
+   window. */
+@media (min-width: 800px) {
+  /* A content-sized panel anchored to the top-right corner reads as
+     slightly adrift on a screen this wide, so it's centered instead - same
+     look as .modal (the disclaimer), for consistency with the one other
+     dialog-like panel already in the app. */
+  .picker--compact {
+    bottom: auto;
+    max-height: 90vh;
+    top: 50%;
+    right: auto;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-left: none;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  }
+
+  .picker--compact .pickerBody {
+    flex: 0 1 auto;
+  }
+}
+
 .pickerHeader {
   display: flex;
   align-items: center;
