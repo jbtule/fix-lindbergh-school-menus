@@ -787,12 +787,12 @@ body:not(.week-view) .menuSection {
   .dayLabel { font-size: 1rem; min-width: 0; }
 }
 
-/* ---------- Print ---------- */
+/* ---------- Actions menu / print ---------- */
 
 /* A small pill, same shape language as .pickerToggle, but quieter (muted
    text, no fill) so it reads as pressable next to each menu's own
    heading without competing with it the way a full-size button would. */
-.printSectionBtn {
+.sectionActionsBtn {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
@@ -808,7 +808,7 @@ body:not(.week-view) .menuSection {
   vertical-align: middle;
 }
 
-.printSectionBtn:hover {
+.sectionActionsBtn:hover {
   color: var(--fg);
   border-color: var(--accent);
 }
@@ -860,6 +860,36 @@ body:not(.week-view) .menuSection {
 .printPopoverHint {
   font-size: 0.75rem;
   color: var(--muted);
+}
+
+/* ---------- Calendar subscribe panel ---------- */
+
+/* .primaryBtn is otherwise only ever a <button> (inline-block by default,
+   so width: 100% just works) - #subscribeLink is an <a>, which needs an
+   explicit block display for that same width to apply, plus the two
+   button-only defaults <a> doesn't carry (no underline, centered label). */
+#subscribeLink {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  margin: 0.75rem 0;
+}
+
+.subscribeUrlHint {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.subscribeUrlHint code {
+  display: block;
+  margin-top: 0.35rem;
+  padding: 0.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  word-break: break-all;
+  user-select: all;
 }
 
 /* Built fresh by printWeek()/printMonth() (app.js) right before

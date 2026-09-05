@@ -97,20 +97,19 @@ step, no bundler.
 python3 -m http.server 8934
 ```
 
-Then open `http://localhost:8934/`.
+Then open `http://localhost:8934/`. Every `?v=dead` you'll see in the source
+is a placeholder - real cache-busting hashes and `version.js`'s content are
+generated at deploy time (see `.github/workflows/deploy-pages.yml`), not
+something to worry about locally.
 
-There's a git pre-commit hook that stamps a content hash onto
-`app.js`/`style.css`/`station-boundaries.js`/`version.js`'s references in
-`index.html` (so GitHub Pages' CDN cache can't serve a stale version after
-a deploy), and onto `config.js`/`menu-api.js`'s import specifiers inside
-`app.js` (since those two are imported rather than script-tagged), and
-writes the same combined hash to `version.js` (so a running page can
-detect a new deploy and reload itself). It lives in `hooks/` rather than
-`.git/hooks/` so it's version-controlled - activate it once per clone:
+## Deployment
 
-```sh
-git config core.hooksPath hooks
-```
+Pushing to `main` triggers `.github/workflows/deploy-pages.yml`, which
+stages the site's files, fills in the footer's commit-SHA badge and the
+`?v=` cache-busting hashes/`version.js` (both placeholders in the
+committed source - see above), and deploys to GitHub Pages. Requires the
+repo's Settings -> Pages -> Build and deployment -> Source to be set to
+"GitHub Actions" (one-time).
 
 ## ical feeds
 

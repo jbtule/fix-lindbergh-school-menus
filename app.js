@@ -3,7 +3,8 @@
 // menu-api.js for the actual vendor fetch calls (shared with the
 // ical-building cron script - see scripts/build-ical.js).
 // APP_VERSION comes from version.js (loaded before this file) - see
-// checkForUpdate() below and hooks/pre-commit.
+// checkForUpdate() below and .github/workflows/deploy-pages.yml, which
+// generates the real value at deploy time.
 
 import {
   MENU_GROUPS,
@@ -13,8 +14,10 @@ import {
   VEGAN_BADGE,
   VEGAN_DISQUALIFYING_FIELDS,
   IDEA_CENTER_GRADE_BY_WEEKDAY,
-} from "./config.js?v=3e7b1d0c";
-import { fetchMonthsList, fetchDocIdForDate, fetchMenuItems } from "./menu-api.js?v=80cba009";
+  ICAL_BASE_URL,
+} from "./config.js?v=dead";
+import { fetchMonthsList, fetchDocIdForDate, fetchMenuItems } from "./menu-api.js?v=dead";
+import { icsSlugFor } from "./ical-naming.js?v=dead";
 
 const STORAGE_KEY = "lsm.selectedMenus";
 const EXCLUDE_STORAGE_KEY = "lsm.excludedAllergens";
@@ -304,14 +307,18 @@ const CAN_PRINT = !(
   window.navigator.standalone === true
 );
 
-// One shared popover (positioned under whichever section's print icon was
-// tapped) rather than one per menu section, since only one can ever be
-// open at a time - see the markup comment in index.html.
-let printPopoverGroup = null;
+// One shared small popover (positioned under whichever section's Actions
+// icon was tapped) rather than one per menu section, since only one can
+// ever be open at a time - see the markup comment in index.html. Its two
+// entries (Print, Calendar Subscribe) each open a full side panel of their
+// own - see openPrintPanel()/openSubscribePanel() below - the popover
+// itself just picks which one.
+let actionMenuGroup = null;
 
-function openPrintPopover(anchor, group) {
-  printPopoverGroup = group;
-  const popover = document.getElementById("printPopover");
+function openActionMenu(anchor, group) {
+  actionMenuGroup = group;
+  const popover = document.getElementById("actionPopover");
+  document.getElementById("actionPopoverPrint").hidden = !CAN_PRINT;
   popover.hidden = false;
   const rect = anchor.getBoundingClientRect();
   popover.style.top = `${rect.bottom + window.scrollY + 4}px`;
@@ -319,9 +326,45 @@ function openPrintPopover(anchor, group) {
   popover.style.left = `${Math.max(left, window.scrollX + 8)}px`;
 }
 
-function closePrintPopover() {
-  document.getElementById("printPopover").hidden = true;
-  printPopoverGroup = null;
+function closeActionMenu() {
+  document.getElementById("actionPopover").hidden = true;
+  actionMenuGroup = null;
+}
+
+// ---------- Print panel ----------
+
+let printPanelGroup = null;
+
+function openPrintPanel(group) {
+  printPanelGroup = group;
+  document.getElementById("printPanel").hidden = false;
+  document.getElementById("printPanelScrim").hidden = false;
+}
+
+function closePrintPanel() {
+  document.getElementById("printPanel").hidden = true;
+  document.getElementById("printPanelScrim").hidden = true;
+  printPanelGroup = null;
+}
+
+// ---------- Calendar subscribe panel ----------
+
+function openSubscribePanel(group) {
+  document.getElementById("subscribeMenuName").textContent = `${group.school} - ${group.name}`;
+  const url = `${ICAL_BASE_URL}/${icsSlugFor(group)}.ics`;
+  // webcal: is what actually triggers a calendar app's "subscribe" flow on
+  // tap; the https URL alongside it is there for anything that doesn't
+  // handle webcal: (or for pasting into a calendar app that wants a plain
+  // URL to add as a subscription instead).
+  document.getElementById("subscribeLink").href = url.replace(/^https?:/, "webcal:");
+  document.getElementById("subscribeUrl").textContent = url;
+  document.getElementById("subscribePanel").hidden = false;
+  document.getElementById("subscribePanelScrim").hidden = false;
+}
+
+function closeSubscribePanel() {
+  document.getElementById("subscribePanel").hidden = true;
+  document.getElementById("subscribePanelScrim").hidden = true;
 }
 
 // Same single-shared-instance approach as the print popover above: one
@@ -704,7 +747,7 @@ async function renderSections() {
   const container = document.getElementById("sections");
   const emptyState = document.getElementById("emptyState");
   const pickerToggle = document.getElementById("pickerToggle");
-  closePrintPopover(); // its anchor is about to be torn down either way
+  closeActionMenu(); // its anchor is about to be torn down either way
   closeStationInfo(); // ditto - the (i) buttons are about to be replaced
   clearPrintArea(); // whatever was last printed is about to be out of date
 
@@ -731,22 +774,20 @@ async function renderSections() {
     section.innerHTML = `
       <h2>
         ${group.school} - ${group.name}
-        ${CAN_PRINT ? `<button class="printSectionBtn" aria-label="Print this menu" title="Print this menu">🖨️ Print</button>` : ""}
+        <button class="sectionActionsBtn" aria-label="Menu actions" title="Print, subscribe...">⋯ Actions</button>
       </h2>
       <div class="sectionBody"><p class="loading">Loading...</p></div>
     `;
     container.appendChild(section);
-    const printBtn = section.querySelector(".printSectionBtn");
-    if (printBtn) {
-      printBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (!document.getElementById("printPopover").hidden && printPopoverGroup === group) {
-          closePrintPopover();
-        } else {
-          openPrintPopover(printBtn, group);
-        }
-      });
-    }
+    const actionsBtn = section.querySelector(".sectionActionsBtn");
+    actionsBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (!document.getElementById("actionPopover").hidden && actionMenuGroup === group) {
+        closeActionMenu();
+      } else {
+        openActionMenu(actionsBtn, group);
+      }
+    });
     return section.querySelector(".sectionBody");
   });
 
@@ -1158,7 +1199,7 @@ function markPrintAreaReady() {
 const PRINT_FALLBACK_NOTE = `
     <section class="printMenuSection">
       <p class="printFallbackNote">
-        Nothing to print yet - cancel this, then use the \u{1F5A8}\u{FE0F} Print button
+        Nothing to print yet - cancel this, then use \u{22EF} Actions > Print
         next to a menu's heading instead. It opens the print dialog for you.
       </p>
     </section>
@@ -1540,24 +1581,40 @@ document.getElementById("translateFullListToggle").addEventListener("change", (e
   }
   location.reload();
 });
-document.getElementById("printPopoverWeek").addEventListener("click", () => {
-  const group = printPopoverGroup;
-  closePrintPopover();
-  if (group) printWeek(group);
+document.getElementById("actionPopoverPrint").addEventListener("click", () => {
+  const group = actionMenuGroup;
+  closeActionMenu();
+  if (group) openPrintPanel(group);
 });
-document.getElementById("printPopoverMonth").addEventListener("click", () => {
-  const group = printPopoverGroup;
-  closePrintPopover();
-  if (group) printMonth(group);
+document.getElementById("actionPopoverSubscribe").addEventListener("click", () => {
+  const group = actionMenuGroup;
+  closeActionMenu();
+  if (group) openSubscribePanel(group);
 });
 // Closing on outside click/scroll - opening itself is handled per-icon in
 // renderSections(), since each icon needs to know which menu it's for.
 document.addEventListener("click", (e) => {
-  if (document.getElementById("printPopover").hidden) return;
-  if (e.target.closest("#printPopover")) return;
-  closePrintPopover();
+  if (document.getElementById("actionPopover").hidden) return;
+  if (e.target.closest("#actionPopover")) return;
+  closeActionMenu();
 });
-window.addEventListener("scroll", closePrintPopover, { passive: true, capture: true });
+window.addEventListener("scroll", closeActionMenu, { passive: true, capture: true });
+
+document.getElementById("printPanelWeek").addEventListener("click", () => {
+  const group = printPanelGroup;
+  closePrintPanel();
+  if (group) printWeek(group);
+});
+document.getElementById("printPanelMonth").addEventListener("click", () => {
+  const group = printPanelGroup;
+  closePrintPanel();
+  if (group) printMonth(group);
+});
+document.getElementById("printPanelClose").addEventListener("click", closePrintPanel);
+document.getElementById("printPanelScrim").addEventListener("click", closePrintPanel);
+
+document.getElementById("subscribePanelClose").addEventListener("click", closeSubscribePanel);
+document.getElementById("subscribePanelScrim").addEventListener("click", closeSubscribePanel);
 
 // Delegated: the (i) buttons are re-created on every render.
 document.addEventListener("click", (e) => {
@@ -1740,8 +1797,8 @@ setInterval(() => {
 }, 60000);
 
 // Reloads the page when a newer version has been deployed. No service
-// worker needed: hooks/pre-commit writes a fresh APP_VERSION to
-// version.js on every commit, so re-fetching index.html fresh (bypassing
+// worker needed: deploy-pages.yml writes a fresh APP_VERSION to
+// version.js on every deploy, so re-fetching index.html fresh (bypassing
 // the browser's own cache - see the disclaimer for why that cache
 // exists) and reading back version.js's current ?v= hash is enough to
 // tell. Matters most for a home-screen icon, which has no reload button

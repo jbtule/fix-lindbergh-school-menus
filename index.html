@@ -1,5 +1,3 @@
----
----
 <!doctype html>
 <html lang="en">
 <head>
@@ -24,7 +22,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Unofficial Menus" />
   <meta name="theme-color" content="#2f6f4f" />
-  <link rel="stylesheet" href="style.css?v=82c4d415" />
+  <link rel="stylesheet" href="style.css?v=dead" />
 </head>
 <body>
   <header class="topbar">
@@ -93,12 +91,9 @@
   </aside>
   <div id="excludePickerScrim" class="pickerScrim" hidden></div>
 
-  <!-- Anchored under whichever menu section's print icon was tapped (see
-       openPrintPopover() in app.js) rather than one per section, since
-       only one can ever be open at a time. -->
   <!-- One shared popover for the (i) beside an inferred station name, same
-       single-instance approach as #printPopover below - only one can be open
-       at a time. Shown only when station-boundaries.js names a box. -->
+       single-instance approach as #actionPopover below - only one can be
+       open at a time. Shown only when station-boundaries.js names a box. -->
   <div id="stationInfoPopover" class="printPopover stationInfoPopover" role="dialog"
        aria-labelledby="stationInfoTitle" hidden>
     <p id="stationInfoTitle" class="stationInfoTitle">About station names</p>
@@ -108,16 +103,56 @@
     </p>
   </div>
 
-  <div id="printPopover" class="printPopover" hidden>
-    <button id="printPopoverWeek" class="printPopoverBtn">
-      Print this week
-      <span class="printPopoverHint">Full detail - entrees, sides, allergens</span>
+  <!-- Anchored under whichever menu section's Actions icon was tapped (see
+       openActionMenu() in app.js) rather than one per section, since only
+       one can ever be open at a time. Each entry opens a full side panel
+       of its own (#printPanel / #subscribePanel below) rather than acting
+       immediately - this popover just picks which one. -->
+  <div id="actionPopover" class="printPopover" hidden>
+    <button id="actionPopoverPrint" class="printPopoverBtn">
+      🖨️ Print
     </button>
-    <button id="printPopoverMonth" class="printPopoverBtn">
-      Print this month
-      <span class="printPopoverHint">Entree names only, whole month</span>
+    <button id="actionPopoverSubscribe" class="printPopoverBtn">
+      📅 Calendar Subscribe
     </button>
   </div>
+
+  <aside id="printPanel" class="picker" hidden>
+    <div class="pickerHeader">
+      <h2>Print</h2>
+      <button id="printPanelClose" class="iconBtn" aria-label="Close">&times;</button>
+    </div>
+    <div class="pickerBody">
+      <button id="printPanelWeek" class="printPopoverBtn">
+        Print this week
+        <span class="printPopoverHint">Full detail - entrees, sides, allergens</span>
+      </button>
+      <button id="printPanelMonth" class="printPopoverBtn">
+        Print this month
+        <span class="printPopoverHint">Entree names only, whole month</span>
+      </button>
+    </div>
+  </aside>
+  <div id="printPanelScrim" class="pickerScrim" hidden></div>
+
+  <aside id="subscribePanel" class="picker" hidden>
+    <div class="pickerHeader">
+      <h2>Subscribe to calendar</h2>
+      <button id="subscribePanelClose" class="iconBtn" aria-label="Close">&times;</button>
+    </div>
+    <div class="pickerBody">
+      <p>
+        Add <strong id="subscribeMenuName"></strong> to your calendar app -
+        it stays up to date on its own, no need to come back and re-print.
+      </p>
+      <a id="subscribeLink" class="primaryBtn" href="#">Subscribe</a>
+      <p class="subscribeUrlHint">
+        Or copy this link into your calendar app:
+        <code id="subscribeUrl"></code>
+      </p>
+    </div>
+  </aside>
+  <div id="subscribePanelScrim" class="pickerScrim" hidden></div>
 
   <div id="disclaimerScrim" class="pickerScrim" hidden></div>
   <div id="disclaimerModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle" hidden>
@@ -167,7 +202,7 @@
   <div id="printArea">
     <section class="printMenuSection">
       <p class="printFallbackNote">
-        Nothing to print yet - cancel this, then use the 🖨️ Print button
+        Nothing to print yet - cancel this, then use ⋯ Actions > Print
         next to a menu's heading instead. It opens the print dialog for you.
       </p>
     </section>
@@ -195,13 +230,16 @@
     </a>
   </footer>
 
-  <script src="version.js?v=d2448e17"></script>
+  <script src="version.js?v=dead"></script>
   <!-- Optional: high-school station boundary hints. Safe to remove - see
        the header comment in the file. -->
-  <script src="station-boundaries.js?v=e674f985"></script>
-  <!-- app.js is an ES module and imports config.js/menu-api.js itself -
-       their own cache-busting ?v= lives on those import specifiers inside
-       app.js (see hooks/pre-commit), not as separate tags here. -->
-  <script type="module" src="app.js?v=aa2359f4"></script>
+  <script src="station-boundaries.js?v=dead"></script>
+  <!-- app.js is an ES module and imports config.js/menu-api.js/
+       ical-naming.js itself - their own cache-busting ?v= lives on those
+       import specifiers inside app.js, not as separate tags here. Every
+       ?v=dead in this file is a placeholder for local dev - the real
+       values are computed and substituted at deploy time, see
+       .github/workflows/deploy-pages.yml. -->
+  <script type="module" src="app.js?v=dead"></script>
 </body>
 </html>

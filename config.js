@@ -56,6 +56,11 @@
 
 export const DISTRICT_SID = "1786638906029";
 
+// Where scripts/build-ical.js's cron job deploys its .ics files (see
+// .github/workflows/build-ical.yml) - used by app.js to build "subscribe to
+// this calendar" links. Must match the Cloudflare Pages project name there.
+export const ICAL_BASE_URL = "https://lindbergh-school-menus-unofficial.pages.dev";
+
 // The variants every Idea Center menu gets split into. dayFilter is a
 // getDay() value (1=Mon..4=Thu) or null for "every day". Keep this in sync
 // with IDEA_CENTER_GRADE_BY_WEEKDAY below - it's the source of the labels.

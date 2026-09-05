@@ -11,15 +11,9 @@ import path from "node:path";
 import { createEvents } from "ics";
 import { MENU_BY_ID, ALLERGEN_DEFS, IDEA_CENTER_GRADE_BY_WEEKDAY } from "../config.js";
 import { fetchMonthsList, fetchMenuItems } from "../menu-api.js";
+import { icsSlugFor } from "../ical-naming.js";
 
 const OUT_DIR = new URL("../dist/ical/", import.meta.url);
-
-function slugify(str) {
-  return str
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 // A quick visual cue in the SUMMARY (see titleForDay) for which meal this
 // is, without the verbosity of a text prefix (see the School Meal prefix
@@ -64,7 +58,7 @@ function buildTargets() {
       // Ordinary menu - one calendar, no day restriction.
       const { info } = entries[0];
       targets.push({
-        slug: slugify(`${info.school}-${info.name}`),
+        slug: icsSlugFor({ name: info.name, school: info.school, apiId, hasFullWeek: true, specificDays: new Set() }),
         title: `${info.school} - ${info.name}`,
         emoji: mealEmoji(info.name),
         apiId,
@@ -85,7 +79,12 @@ function buildTargets() {
     for (const { info } of specificDayEntries) {
       const grade = IDEA_CENTER_GRADE_BY_WEEKDAY[info.dayFilter];
       targets.push({
-        slug: slugify(`${info.baseName}-${grade}`),
+        slug: icsSlugFor({
+          name: info.baseName,
+          apiId,
+          hasFullWeek: false,
+          specificDays: new Set([info.dayFilter]),
+        }),
         title: `${info.baseName} - ${grade}`,
         emoji: ideaCenterEmoji,
         apiId,
@@ -96,7 +95,7 @@ function buildTargets() {
     const fullWeek = entries.find((e) => e.info.dayFilter === null);
     if (fullWeek) {
       targets.push({
-        slug: slugify(`${fullWeek.info.baseName}-full-week`),
+        slug: icsSlugFor({ name: fullWeek.info.baseName, apiId, hasFullWeek: true, specificDays: new Set() }),
         title: fullWeek.info.name,
         emoji: ideaCenterEmoji,
         apiId,
@@ -112,7 +111,7 @@ function buildTargets() {
       const grades = combo.map((d) => IDEA_CENTER_GRADE_BY_WEEKDAY[d]);
       const baseName = specificDayEntries[0].info.baseName;
       targets.push({
-        slug: slugify(`${baseName}-${grades.join("-")}`),
+        slug: icsSlugFor({ name: baseName, apiId, hasFullWeek: false, specificDays: new Set(combo) }),
         title: `${baseName} - ${grades.join(" + ")}`,
         // Only used to build each event's own description header (see
         // buildCalendar) - a given day belongs to just one grade, even
