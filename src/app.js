@@ -15,6 +15,7 @@ import {
   VEGAN_DISQUALIFYING_FIELDS,
   IDEA_CENTER_GRADE_BY_WEEKDAY,
   ICAL_BASE_URL,
+  mealEmoji,
 } from "./config.js?v=dead";
 import { fetchMonthsList, fetchDocIdForDate, fetchMenuItems } from "./menu-api.js?v=dead";
 import { icsSlugFor } from "./ical-naming.js?v=dead";
@@ -176,21 +177,26 @@ function buildPicker() {
           byBase.get(key).push(m);
         }
         for (const [, variants] of byBase) {
+          const baseName = variants[0].baseName || variants[0].name;
+          // Idea Center's baseName is always "Idea Center Breakfast"/
+          // "Idea Center Lunch" - the meal is its last word (same
+          // convention as scripts/build-ical.js's ideaCenterMeal).
+          const emoji = mealEmoji(baseName.split(" ").pop());
           const bh = document.createElement("h5");
-          bh.textContent = variants[0].baseName || variants[0].name;
+          bh.textContent = baseName;
           schoolEl.appendChild(bh);
           schoolEl.appendChild(
             buildMenuCheckboxList(
               variants.map((v) => ({
                 id: v.id,
-                label: v.name.slice((v.baseName || "").length).replace(/^\s*-\s*/, ""),
+                label: `${emoji} ${v.name.slice((v.baseName || "").length).replace(/^\s*-\s*/, "")}`,
               }))
             )
           );
         }
       } else {
         schoolEl.appendChild(
-          buildMenuCheckboxList(s.menus.map((m) => ({ id: m.id, label: m.name })))
+          buildMenuCheckboxList(s.menus.map((m) => ({ id: m.id, label: `${mealEmoji(m.name)} ${m.name}` })))
         );
       }
       groupEl.appendChild(schoolEl);

@@ -277,6 +277,22 @@ export const IDEA_CENTER_GRADE_BY_WEEKDAY = {
   4: "1st & 2nd Grade", // Thursday
 };
 
+// A quick visual cue for which meal this is - used both in the picker
+// (app.js) and the cron-built calendars' SUMMARY line (scripts/
+// build-ical.js), so it's shared here instead of duplicated. Flyers Club
+// and Snack share one icon - both are the lighter, informal meal at
+// whichever school has them.
+export const MEAL_EMOJI = {
+  Breakfast: "🥞",
+  Lunch: "🥪",
+  "Flyers Club": "🍎",
+  Snack: "🍎",
+};
+
+export function mealEmoji(meal) {
+  return MEAL_EMOJI[meal] || "";
+}
+
 // Each product comes back with a boolean-ish allergen_* field per allergen
 // ("1"/null, not a real boolean - see isAllergenFlagged() in app.js).
 // `icon` is emoji, shown as a badge next to the item. Where two fields

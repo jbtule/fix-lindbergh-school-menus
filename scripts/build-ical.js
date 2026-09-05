@@ -15,26 +15,12 @@ import {
   IDEA_CENTER_GRADE_BY_WEEKDAY,
   SCHOOL_CALENDAR_ICS_URL,
   SCHOOL_CALENDAR_IDS,
+  mealEmoji,
 } from "../src/config.js";
 import { fetchMonthsList, fetchMenuItems } from "../src/menu-api.js";
 import { icsSlugFor } from "../src/ical-naming.js";
 
 const OUT_DIR = new URL("../dist/ical/", import.meta.url);
-
-// A quick visual cue in the SUMMARY (see titleForDay) for which meal this
-// is, without the verbosity of a text prefix (see the School Meal prefix
-// this replaced - dropped as too noisy). Flyers Club and Snack share one
-// icon - both are the lighter, informal meal at whichever school has them.
-const MEAL_EMOJI = {
-  Breakfast: "🥞",
-  Lunch: "🥪",
-  "Flyers Club": "🍎",
-  Snack: "🍎",
-};
-
-function mealEmoji(meal) {
-  return MEAL_EMOJI[meal] || "";
-}
 
 // Every non-empty subset of a small array, as arrays in their original
 // relative order (there are only ever 4 weekdays to combine, so 2^4-1 = 15
