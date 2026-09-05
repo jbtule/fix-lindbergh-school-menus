@@ -208,6 +208,15 @@ function titleForDay(items, target) {
 // HONOR_HIDE_FLAGS in app.js, which covers hide_on_web_menu_view too and is
 // off by default). Here, honor hide_on_calendars specifically: an ical
 // export is the literal thing that flag describes.
+//
+// This is the actual, and only, reason milk/condiment products (Milk
+// cartons, Ketchup/Mustard/Mayo/Ranch "Dispenser" items) are invisible in
+// the built calendars - they're flagged this way district-wide, so they're
+// filtered out here in buildCalendar() before an item ever reaches
+// describeDay()/titleForDay(). SNACK_EXCLUDED_CATEGORIES (config.js) is a
+// separate, unrelated mechanism - it only decides whether an item that DID
+// survive this filter counts as the Snack-menu "entree" or a plain side; it
+// never removes anything on its own.
 function isHiddenFromCalendar(product) {
   const v = product.hide_on_calendars;
   return v === true || v === "1" || v === 1;

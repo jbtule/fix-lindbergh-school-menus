@@ -307,6 +307,15 @@ export const SNACK_MEAL_NAMES = new Set(["Flyers Club", "Snack"]);
 // snack" the way Flyers Club's one item is, so they're excluded from the
 // entree recategorization above and stay ordinary sides even on a menu
 // where SNACK_MEAL_NAMES applies.
+//
+// Unrelated to why milk/condiments are actually invisible in the cron-
+// built calendars: that's the district's own hide_on_calendars flag (see
+// isHiddenFromCalendar() in scripts/build-ical.js), set on those products
+// district-wide regardless of menu, which drops them before this exclusion
+// ever runs. This set only matters where an item DOES survive that flag -
+// on screen (which deliberately doesn't honor hide_on_calendars - see
+// HONOR_HIDE_FLAGS in app.js) and on any future/other menu whose milk or
+// condiments aren't flagged hidden.
 export const SNACK_EXCLUDED_CATEGORIES = new Set(["Milk", "Condiment"]);
 
 // Juice (e.g. "100% Fruit Punch Juice") is filed under the same "Fruit"
