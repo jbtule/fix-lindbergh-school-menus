@@ -1164,6 +1164,35 @@ function peekDayItems(info, date) {
   return dayItems.length ? dayItems : null;
 }
 
+// Same persisted cache fetchNoSchoolDays() itself writes to (see
+// NO_SCHOOL_DAYS_CACHE_KEY above), read back synchronously - lets a known
+// holiday/no-school day paint its real message instantly too, not just a
+// day with real published items.
+function peekCachedNoSchoolDays() {
+  const cached = readLocalCache(NO_SCHOOL_DAYS_CACHE_KEY);
+  return cached ? { dates: new Set(cached.dates), labels: cached.labels || {} } : null;
+}
+
+// Everything an instant paint can actually answer without a network round
+// trip: real published items (peekDayItems()), or a day already known - via
+// the persisted no-school calendar cache - to be a real day off. Mirrors
+// fetchDayItems()'s own "empty" + isNoSchoolDay message shape exactly, so
+// there's no visible change when the real fetch below confirms it. Anything
+// else (a genuine cache miss, or an empty day whose reason isn't cached
+// yet) returns null and leaves "Loading..." in place rather than guessing.
+function peekDayHtml(info, date) {
+  const items = peekDayItems(info, date);
+  if (items) return renderDayHtml(info, date, items);
+
+  const noSchoolDays = peekCachedNoSchoolDays();
+  if (!noSchoolDays) return null;
+  const isoDate = toISODate(date);
+  if (!noSchoolDays.dates.has(isoDate)) return null;
+  const label = noSchoolLabelFor(noSchoolDays, info.school, isoDate);
+  const message = label ? `${label}.` : "No school today.";
+  return `<p class="empty">${message}</p>`;
+}
+
 async function computeDayHtml(info, date) {
   const result = await fetchDayItems(info, date);
   if (result.kind) return `<p class="${result.kind}">${result.message}</p>`;
@@ -1297,7 +1326,7 @@ function renderDayHtml(info, date, dayItems) {
 
 async function renderOneMenu(info, bodyEl) {
   if (!bodyEl) return;
-  // Instant paint from whatever's already cached (see peekDayItems()) -
+  // Instant paint from whatever's already cached (see peekDayHtml()) -
   // skips the visible "Loading..." flash on a fresh page load for any menu
   // that's been viewed before, since the vendor round trip is usually the
   // slowest part of getting anything on screen at all. Left untouched
@@ -1305,8 +1334,8 @@ async function renderOneMenu(info, bodyEl) {
   // never been fetched has nothing to paint early. Either way, the real
   // fetch below still runs and repaints with the live result once it
   // resolves, so a stale cache never has the last word.
-  const cachedItems = peekDayItems(info, state.currentDate);
-  if (cachedItems) bodyEl.innerHTML = renderDayHtml(info, state.currentDate, cachedItems);
+  const cachedHtml = peekDayHtml(info, state.currentDate);
+  if (cachedHtml) bodyEl.innerHTML = cachedHtml;
   bodyEl.innerHTML = await computeDayHtml(info, state.currentDate);
 }
 
@@ -1346,11 +1375,9 @@ async function renderOneMenuWeek(info, bodyEl) {
   // Instant paint from cache (see renderOneMenu()'s comment) - a day with
   // nothing cached yet just keeps showing "Loading..." in its own column
   // rather than blocking the whole week on one uncached day.
-  const cachedPerDay = dates.map((d) => peekDayItems(info, d));
+  const cachedPerDay = dates.map((d) => peekDayHtml(info, d));
   if (cachedPerDay.some(Boolean)) {
-    const cachedHtmls = dates.map((d, i) =>
-      cachedPerDay[i] ? renderDayHtml(info, d, cachedPerDay[i]) : `<p class="loading">Loading...</p>`
-    );
+    const cachedHtmls = cachedPerDay.map((html) => html || `<p class="loading">Loading...</p>`);
     bodyEl.innerHTML = `<div class="weekScroll">${weekCardsHtml(dates, cachedHtmls)}</div>`;
   }
 
