@@ -158,16 +158,15 @@ function allergensFor(product) {
 // grouped/categorized rendering (renderSideGroups() etc. in app.js) - a
 // calendar description doesn't need collapsible sections, just a quick read.
 function describeDay(items) {
-  // A fixed 2-space indent, not one matching the prefix's own width -
-  // padding with spaces to visually align under the item name only works
-  // in a monospace font, and most calendar apps render descriptions in a
-  // proportional one (worse for the 🍽 entree prefix specifically, since
-  // an emoji glyph's rendered width isn't even 1:1 with its string
-  // length). A plain, fixed indent still reads as "belongs to the line
-  // above" without pretending at an alignment that won't hold up.
+  // No number of spaces reads as "indented" consistently - a space's
+  // rendered width is tied to the font, so any whitespace-only attempt at
+  // alignment looks different (and in a proportional font, much narrower
+  // than expected) depending on what's rendering it. A └ marker instead
+  // reads as "belongs to the line above" (tree-view style) from the
+  // character itself, not a measured gap - identical regardless of font.
   const withAllergenLine = (prefix, it) => {
     const allergens = allergensFor(it.product);
-    return allergens.length ? `${prefix}${it.product.name}\n  Allergens: ${allergens.join(", ")}` : `${prefix}${it.product.name}`;
+    return allergens.length ? `${prefix}${it.product.name}\n└ Allergens: ${allergens.join(", ")}` : `${prefix}${it.product.name}`;
   };
 
   const entrees = items.filter((it) => it.product.category === "Entrees" && it.product.name);
