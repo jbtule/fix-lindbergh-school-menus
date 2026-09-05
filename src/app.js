@@ -844,7 +844,7 @@ function groupEntreeRuns(dayItemsInOrder, menuGroup) {
 // Display order for the district's own non-entree categories. Anything not
 // listed here (including the occasional blank category - a gap in their
 // data, e.g. "Mayo Dispenser") is grouped under "Other" at the end.
-const SIDE_CATEGORY_ORDER = ["Vegetable", "Fruit", "Milk", "Condiment", "Grain"];
+const SIDE_CATEGORY_ORDER = ["Vegetable", "Fruit", "Grain", "Milk", "Condiment"];
 const SIDE_CATEGORY_LABELS = {
   Vegetable: "Vegetables",
   Fruit: "Fruits",
