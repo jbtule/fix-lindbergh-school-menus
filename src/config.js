@@ -293,22 +293,21 @@ export function mealEmoji(meal) {
   return MEAL_EMOJI[meal] || "";
 }
 
-// Flyers Club is a single informal item, not a full breakfast/lunch with
-// separate courses - the district still files that one item under a side
-// category (usually Grain), never "Entrees". Treated everywhere as its own
-// "Snack" category with Entree-level prominence instead - both in the app
-// (src/app.js's computeDayHtml/computeMonthEntrees/computeDayItemsForPrint)
-// and in the cron-built calendars (scripts/build-ical.js's describeDay/
-// titleForDay) - rather than being buried as a collapsed side alongside
-// milk and condiments.
-//
-// ECE's "Snack" menu is deliberately NOT included here despite sharing the
-// same emoji above - unlike Flyers Club, it actually has real sides/drinks
-// alongside its main item (see the real ece-snack.ics output: "Goldfish
-// Crackers" + "100% Orange Juice" as separate entries), so forcing every
-// item into one "Snack" entree box would flatten that real structure
-// instead of surfacing a hidden one.
-export const SNACK_MEAL_NAMES = new Set(["Flyers Club"]);
+// Flyers Club and ECE's Snack are both a lighter, informal meal - the
+// district still files their food under a side category (usually Grain or
+// Fruit), never "Entrees". Treated everywhere as its own "Snack" category
+// with Entree-level prominence instead - both in the app (src/app.js's
+// computeDayHtml/computeMonthEntrees/computeDayItemsForPrint) and in the
+// cron-built calendars (scripts/build-ical.js's describeDay/titleForDay) -
+// rather than being buried as a collapsed side.
+export const SNACK_MEAL_NAMES = new Set(["Flyers Club", "Snack"]);
+
+// ECE's Snack menu, unlike Flyers Club, actually pairs its real food with
+// milk and/or a condiment (dip, dressing) - those aren't part of "the
+// snack" the way Flyers Club's one item is, so they're excluded from the
+// entree recategorization above and stay ordinary sides even on a menu
+// where SNACK_MEAL_NAMES applies.
+export const SNACK_EXCLUDED_CATEGORIES = new Set(["Milk", "Condiment"]);
 
 // Each product comes back with a boolean-ish allergen_* field per allergen
 // ("1"/null, not a real boolean - see isAllergenFlagged() in app.js).

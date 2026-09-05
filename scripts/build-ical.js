@@ -17,6 +17,7 @@ import {
   SCHOOL_CALENDAR_IDS,
   mealEmoji,
   SNACK_MEAL_NAMES,
+  SNACK_EXCLUDED_CATEGORIES,
 } from "../src/config.js";
 import { fetchMonthsList, fetchMenuItems } from "../src/menu-api.js";
 import { icsSlugFor } from "../src/ical-naming.js";
@@ -160,13 +161,18 @@ function describeDay(items, isSnackMenu) {
     return allergens.length ? `${prefix}${it.product.name}\n└ Allergens: ${allergens.join(", ")}` : `${prefix}${it.product.name}`;
   };
 
-  // Flyers Club/Snack (see SNACK_MEAL_NAMES): the one published item is the
-  // whole meal, filed under a side category, never "Entrees" - give it the
-  // same 🍽 treatment as a real entree instead of burying it under "Sides:".
+  // Flyers Club/Snack (see SNACK_MEAL_NAMES): the real food is the whole
+  // meal, filed under a side category, never "Entrees" - give it the same
+  // 🍽 treatment as a real entree instead of burying it under "Sides:".
+  // Milk/condiments (SNACK_EXCLUDED_CATEGORIES) still go under "Sides:" -
+  // ECE's Snack menu pairs those with its actual food, and they aren't
+  // "the snack" the way that food is.
   const entrees = isSnackMenu
-    ? items.filter((it) => it.product.name)
+    ? items.filter((it) => !SNACK_EXCLUDED_CATEGORIES.has(it.product.category) && it.product.name)
     : items.filter((it) => it.product.category === "Entrees" && it.product.name);
-  const sides = isSnackMenu ? [] : items.filter((it) => it.product.category !== "Entrees" && it.product.name);
+  const sides = isSnackMenu
+    ? items.filter((it) => SNACK_EXCLUDED_CATEGORIES.has(it.product.category) && it.product.name)
+    : items.filter((it) => it.product.category !== "Entrees" && it.product.name);
 
   const blocks = entrees.map((it) => withAllergenLine("🍽 ", it));
   if (sides.length) {
@@ -177,17 +183,22 @@ function describeDay(items, isSnackMenu) {
 
 // Multiple entrees on the same day are alternative choices, not a combo
 // meal - "-or-" makes that unambiguous in the calendar's day view. A day
-// with no Entrees at all (e.g. ECE's Snack menu, which has no entree
-// category) falls back to listing whatever items there are instead, rather
-// than just repeating the menu's own name. Prefixed with the meal's emoji
-// (see MEAL_EMOJI) as a quick visual cue when several calendars are
-// overlaid in one day view.
+// with no Entrees at all (e.g. a Flyers Club/Snack menu, which has no
+// entree category) falls back to listing whatever items there are instead,
+// rather than just repeating the menu's own name - excluding milk/
+// condiments (SNACK_EXCLUDED_CATEGORIES) on a snack menu, same as
+// describeDay(), so they don't clutter the title either. Prefixed with the
+// meal's emoji (see MEAL_EMOJI) as a quick visual cue when several
+// calendars are overlaid in one day view.
 function titleForDay(items, target) {
   const entrees = items
     .filter((it) => it.product.category === "Entrees")
     .map((it) => it.product.name)
     .filter(Boolean);
-  const names = items.map((it) => it.product.name).filter(Boolean);
+  const names = items
+    .filter((it) => !(target.isSnackMenu && SNACK_EXCLUDED_CATEGORIES.has(it.product.category)))
+    .map((it) => it.product.name)
+    .filter(Boolean);
   const body = entrees.length ? entrees.join(" -or- ") : names.join(", ");
   return target.emoji ? `${target.emoji} ${body}` : body;
 }
