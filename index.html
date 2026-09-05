@@ -123,14 +123,24 @@
       <button id="printPanelClose" class="iconBtn" aria-label="Close">&times;</button>
     </div>
     <div class="pickerBody">
-      <button id="printPanelWeek" class="printPopoverBtn">
-        Print this week
-        <span class="printPopoverHint">Full detail - entrees, sides, allergens</span>
-      </button>
-      <button id="printPanelMonth" class="printPopoverBtn">
-        Print this month
-        <span class="printPopoverHint">Entree names only, whole month</span>
-      </button>
+      <p>Choose how much detail to print for <strong id="printMenuName"></strong>.</p>
+      <label class="radioOption">
+        <input type="radio" name="printRange" value="week" checked />
+        <span class="radioOptionText">
+          Print this week
+          <span class="printPopoverHint">Full detail - entrees, sides, allergens</span>
+        </span>
+      </label>
+      <label class="radioOption">
+        <input type="radio" name="printRange" value="month" />
+        <span class="radioOptionText">
+          Print this month
+          <span class="printPopoverHint">Entree names only, whole month</span>
+        </span>
+      </label>
+    </div>
+    <div class="pickerFooter">
+      <button id="printPanelGo" class="primaryBtn">Print</button>
     </div>
   </aside>
   <div id="printPanelScrim" class="pickerScrim" hidden></div>
@@ -145,6 +155,20 @@
         Add <strong id="subscribeMenuName"></strong> to your calendar app -
         it stays up to date on its own, no need to come back and re-print.
       </p>
+      <label class="radioOption">
+        <input type="radio" name="calendarApp" value="apple" checked />
+        <span class="radioOptionText">Apple Calendar</span>
+      </label>
+      <label class="radioOption">
+        <input type="radio" name="calendarApp" value="google" />
+        <span class="radioOptionText">Google Calendar</span>
+      </label>
+      <label class="radioOption">
+        <input type="radio" name="calendarApp" value="outlook" />
+        <span class="radioOptionText">Outlook</span>
+      </label>
+    </div>
+    <div class="pickerFooter">
       <a id="subscribeLink" class="primaryBtn" href="#">Subscribe</a>
       <p class="subscribeUrlHint">
         Or copy this link into your calendar app:

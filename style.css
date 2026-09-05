@@ -250,6 +250,28 @@ body {
   cursor: pointer;
 }
 
+/* Radio-choice rows in the Print and Calendar Subscribe panels - like
+   .pickerCheckbox, but top-aligned (rather than centered) and with room
+   for a second, muted line of text under the option's own label - see
+   .radioOptionText/.printPopoverHint. */
+.radioOption {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  cursor: pointer;
+}
+
+.radioOption input[type="radio"] {
+  margin-top: 0.2rem;
+}
+
+.radioOptionText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
 .pickerFooter {
   padding: 1rem;
   border-top: 1px solid var(--border);

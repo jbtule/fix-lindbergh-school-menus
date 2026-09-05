@@ -342,6 +342,7 @@ let printPanelGroup = null;
 
 function openPrintPanel(group) {
   printPanelGroup = group;
+  document.getElementById("printMenuName").textContent = `${group.school} - ${group.name}`;
   document.getElementById("printPanel").hidden = false;
   document.getElementById("printPanelScrim").hidden = false;
 }
@@ -354,15 +355,46 @@ function closePrintPanel() {
 
 // ---------- Calendar subscribe panel ----------
 
+let subscribeUrl = null; // the plain https .ics URL for whatever group is open
+
+// Each calendar app wants a different URL shape to actually trigger its own
+// "subscribe" flow on tap - the plain https URL alone (what #subscribeUrl
+// shows for copy/paste) only works handed to Apple's Calendar app or typed
+// into one of the others' own "subscribe by URL" screen directly.
+//   apple   - webcal: is a registered protocol Calendar.app/iOS handle
+//             directly, no site visit involved.
+//   google  - undocumented but long-stable "render?cid=" deep link that
+//             opens Google Calendar straight to its own add-subscription
+//             confirmation, pre-filled.
+//   outlook - Outlook.com's own "add calendar from web" screen, likewise
+//             pre-filled via query params.
+function calendarAppLink(app, url, name) {
+  switch (app) {
+    case "google":
+      return `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(url)}`;
+    case "outlook":
+      return `https://outlook.live.com/calendar/0/addcalendar?url=${encodeURIComponent(url)}&name=${encodeURIComponent(name)}`;
+    default:
+      return url.replace(/^https?:/, "webcal:");
+  }
+}
+
+function updateSubscribeLink() {
+  const app = document.querySelector('input[name="calendarApp"]:checked').value;
+  const name = document.getElementById("subscribeMenuName").textContent;
+  const link = document.getElementById("subscribeLink");
+  link.href = calendarAppLink(app, subscribeUrl, name);
+  // Google/Outlook open their own confirmation page - that should happen in
+  // a new tab, not navigate away from the app. webcal: is a protocol
+  // handoff, not a page load, so target is irrelevant there either way.
+  link.target = app === "apple" ? "" : "_blank";
+}
+
 function openSubscribePanel(group) {
   document.getElementById("subscribeMenuName").textContent = `${group.school} - ${group.name}`;
-  const url = `${ICAL_BASE_URL}/${icsSlugFor(group)}.ics`;
-  // webcal: is what actually triggers a calendar app's "subscribe" flow on
-  // tap; the https URL alongside it is there for anything that doesn't
-  // handle webcal: (or for pasting into a calendar app that wants a plain
-  // URL to add as a subscription instead).
-  document.getElementById("subscribeLink").href = url.replace(/^https?:/, "webcal:");
-  document.getElementById("subscribeUrl").textContent = url;
+  subscribeUrl = `${ICAL_BASE_URL}/${icsSlugFor(group)}.ics`;
+  document.getElementById("subscribeUrl").textContent = subscribeUrl;
+  updateSubscribeLink();
   document.getElementById("subscribePanel").hidden = false;
   document.getElementById("subscribePanelScrim").hidden = false;
 }
@@ -1616,19 +1648,20 @@ document.addEventListener("click", (e) => {
 });
 window.addEventListener("scroll", closeActionMenu, { passive: true, capture: true });
 
-document.getElementById("printPanelWeek").addEventListener("click", () => {
+document.getElementById("printPanelGo").addEventListener("click", () => {
   const group = printPanelGroup;
+  const range = document.querySelector('input[name="printRange"]:checked').value;
   closePrintPanel();
-  if (group) printWeek(group);
-});
-document.getElementById("printPanelMonth").addEventListener("click", () => {
-  const group = printPanelGroup;
-  closePrintPanel();
-  if (group) printMonth(group);
+  if (!group) return;
+  if (range === "month") printMonth(group);
+  else printWeek(group);
 });
 document.getElementById("printPanelClose").addEventListener("click", closePrintPanel);
 document.getElementById("printPanelScrim").addEventListener("click", closePrintPanel);
 
+for (const radio of document.querySelectorAll('input[name="calendarApp"]')) {
+  radio.addEventListener("change", updateSubscribeLink);
+}
 document.getElementById("subscribePanelClose").addEventListener("click", closeSubscribePanel);
 document.getElementById("subscribePanelScrim").addEventListener("click", closeSubscribePanel);
 
