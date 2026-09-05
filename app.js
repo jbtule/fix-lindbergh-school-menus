@@ -1,7 +1,20 @@
 // Lindbergh School Menus - static front end for the district's menu API.
-// See config.js for the menu-type ids and how they were discovered.
+// See config.js for the menu-type ids and how they were discovered, and
+// menu-api.js for the actual vendor fetch calls (shared with the
+// ical-building cron script - see scripts/build-ical.js).
 // APP_VERSION comes from version.js (loaded before this file) - see
 // checkForUpdate() below and hooks/pre-commit.
+
+import {
+  MENU_GROUPS,
+  MENU_BY_ID,
+  ALLERGEN_DEFS,
+  EXCLUDE_OPTIONS,
+  VEGAN_BADGE,
+  VEGAN_DISQUALIFYING_FIELDS,
+  IDEA_CENTER_GRADE_BY_WEEKDAY,
+} from "./config.js?v=3e7b1d0c";
+import { fetchMonthsList, fetchDocIdForDate, fetchMenuItems } from "./menu-api.js?v=80cba009";
 
 const STORAGE_KEY = "lsm.selectedMenus";
 const EXCLUDE_STORAGE_KEY = "lsm.excludedAllergens";
@@ -29,33 +42,6 @@ const state = {
   // every menu, not per-section, per how it's asked for.
   collapsedOverrides: loadCollapsedOverrides(),
 };
-
-// Flat lookup: menuId (the picker's id, which for Idea Center variants is
-// `${baseId}__${variantKey}`) -> menu info.
-//   name        - full display name
-//   baseName    - name without the variant suffix (== name for anything
-//                 that isn't an Idea Center variant) - used as the
-//                 header when several variants get grouped together,
-//                 see groupSelectedMenus()
-//   school      - school name for the section header
-//   group       - site group (Elementary/Middle/High/Pre-K)
-//   apiId       - the real menu-type id to query (== id, except variants)
-//   dayFilter   - getDay() value this menu is restricted to, or null
-const MENU_BY_ID = {};
-for (const g of MENU_GROUPS) {
-  for (const s of g.schools) {
-    for (const m of s.menus) {
-      MENU_BY_ID[m.id] = {
-        name: m.name,
-        baseName: m.baseName || m.name,
-        school: s.school,
-        group: g.group,
-        apiId: m.baseId || m.id,
-        dayFilter: typeof m.dayFilter === "number" ? m.dayFilter : null,
-      };
-    }
-  }
-}
 
 function startOfDay(d) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -151,83 +137,6 @@ function isCategoryCollapsed(category) {
     return state.collapsedOverrides[category];
   }
   return !DEFAULT_EXPANDED_CATEGORIES.has(category);
-}
-
-// ---------- API calls ----------
-
-// Cache menutype -> full months list for the session, since paging day by
-// day would otherwise re-fetch the same month-listing repeatedly.
-const monthListCache = new Map();
-
-async function fetchMonthsList(menuTypeId) {
-  if (monthListCache.has(menuTypeId)) return monthListCache.get(menuTypeId);
-  const url = `${MENUTYPE_URL}/show-raw?_id=${encodeURIComponent(menuTypeId)}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`menutype lookup failed: ${res.status}`);
-  const data = await res.json();
-  const menus = data.menus || [];
-  monthListCache.set(menuTypeId, menus);
-  return menus;
-}
-
-async function fetchDocIdForDate(menuTypeId, date) {
-  const menus = await fetchMonthsList(menuTypeId);
-  const month = date.getMonth();
-  const year = date.getFullYear();
-  const match = menus.find(
-    (m) => Number(m.month) === month && Number(m.year) === year
-  );
-  return match ? match._id.$id : null;
-}
-
-const itemsCache = new Map(); // docId -> Promise<items[]>
-
-async function fetchMenuItems(docId) {
-  if (itemsCache.has(docId)) return itemsCache.get(docId);
-  const query = `{
-    menu(id: "${docId}") {
-      id
-      items {
-        day
-        product {
-          name
-          category
-          # Only used by stationBoundaryHint() in station-boundaries.js.
-          # Safe to drop along with that file - nothing else reads them.
-          providerProductID
-          product_fullname
-          hide_on_web_menu_view
-          hide_on_calendars
-          allergen_dairy
-          allergen_egg
-          allergen_fish
-          allergen_gluten
-          allergen_milk
-          allergen_peanut
-          allergen_pork
-          allergen_shellfish
-          allergen_soy
-          allergen_sesame
-          allergen_treenuts
-          allergen_vegetarian
-          allergen_wheat
-          allergen_other
-        }
-      }
-    }
-  }`;
-  const promise = fetch(GRAPHQL_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query }),
-  })
-    .then((res) => {
-      if (!res.ok) throw new Error(`graphql failed: ${res.status}`);
-      return res.json();
-    })
-    .then((data) => (data.data && data.data.menu && data.data.menu.items) || []);
-  itemsCache.set(docId, promise);
-  return promise;
 }
 
 // ---------- Picker UI ----------

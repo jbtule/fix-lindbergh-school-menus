@@ -188,11 +188,13 @@
     </a>
   </footer>
 
-  <script src="version.js?v=8e795990"></script>
-  <script src="config.js?v=61810c4a"></script>
+  <script src="version.js?v=d2448e17"></script>
   <!-- Optional: high-school station boundary hints. Safe to remove - see
        the header comment in the file. -->
   <script src="station-boundaries.js?v=e674f985"></script>
-  <script src="app.js?v=3f6f3cf1"></script>
+  <!-- app.js is an ES module and imports config.js/menu-api.js itself -
+       their own cache-busting ?v= lives on those import specifiers inside
+       app.js (see hooks/pre-commit), not as separate tags here. -->
+  <script type="module" src="app.js?v=aa2359f4"></script>
 </body>
 </html>

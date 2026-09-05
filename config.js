@@ -5,7 +5,9 @@
 //   - GraphQL: https://api.schoolnutritionandfitness.com/graphql
 //   - REST:    https://www.schoolnutritionandfitness.com/webmenus2/api/menutypeController.php
 // Both endpoints have wide-open CORS (they reflect whatever Origin sends the
-// request), so this static site calls them directly from the browser.
+// request), so this static site calls them directly from the browser. The
+// actual fetch code (and the two URLs above) lives in menu-api.js, not here -
+// this file is just the district's data (which schools/menus exist).
 //
 // The menu tree (schools + menu-type ids) below was pulled once via the
 // GraphQL `organization` -> `site` -> `menuTypes` chain. It rarely changes,
@@ -52,12 +54,12 @@
 // Nutrislice PDF and cannot be regenerated now that Nutrislice is gone.
 // ---------------------------------------------------------------------
 
-const DISTRICT_SID = "1786638906029";
+export const DISTRICT_SID = "1786638906029";
 
 // The variants every Idea Center menu gets split into. dayFilter is a
 // getDay() value (1=Mon..4=Thu) or null for "every day". Keep this in sync
 // with IDEA_CENTER_GRADE_BY_WEEKDAY below - it's the source of the labels.
-const IDEA_CENTER_VARIANTS = [
+export const IDEA_CENTER_VARIANTS = [
   { key: "all", label: "Full Week", dayFilter: null },
   { key: "mon", label: "Mondays - 5th Grade", dayFilter: 1 },
   { key: "tue", label: "Tuesdays - 4th Grade", dayFilter: 2 },
@@ -84,13 +86,9 @@ function expandIdeaCenterMenus(baseMenus) {
   return out;
 }
 
-const GRAPHQL_URL = "https://api.schoolnutritionandfitness.com/graphql";
-const MENUTYPE_URL =
-  "https://www.schoolnutritionandfitness.com/webmenus2/api/menutypeController.php";
-
 // Every selectable menu, grouped the same way the district's own dropdown
 // groups them. `id` is the GraphQL/REST menu-type id.
-const MENU_GROUPS = [
+export const MENU_GROUPS = [
   {
     group: "Elementary Schools",
     schools: [
@@ -216,7 +214,7 @@ const MENU_GROUPS = [
 // data anywhere (confirmed: every day of the month has identical items with
 // no grade tag), so it's hardcoded here. getDay(): 0=Sun ... 6=Sat.
 // Friday is intentionally left out - not specified.
-const IDEA_CENTER_GRADE_BY_WEEKDAY = {
+export const IDEA_CENTER_GRADE_BY_WEEKDAY = {
   1: "5th Grade", // Monday
   2: "4th Grade", // Tuesday
   3: "3rd Grade", // Wednesday
@@ -232,7 +230,7 @@ const IDEA_CENTER_GRADE_BY_WEEKDAY = {
 // `textOnly: true` means there's no decent emoji for it (currently unused,
 // but the badge renderer in app.js still supports it) - it renders as a
 // small text pill instead of an icon.
-const ALLERGEN_DEFS = [
+export const ALLERGEN_DEFS = [
   { field: "allergen_dairy", label: "Dairy", icon: "🥛" },
   { field: "allergen_milk", label: "Milk", icon: "🥛" },
   { field: "allergen_egg", label: "Egg", icon: "🥚" },
@@ -255,8 +253,8 @@ const ALLERGEN_DEFS = [
 // When an item qualifies, it shows only this badge instead of also
 // showing "Vegetarian" - vegan already implies it. See isVegan() in
 // app.js.
-const VEGAN_BADGE = { label: "Vegan", icon: "🌿" };
-const VEGAN_DISQUALIFYING_FIELDS = ["allergen_dairy", "allergen_milk", "allergen_egg"];
+export const VEGAN_BADGE = { label: "Vegan", icon: "🌿" };
+export const VEGAN_DISQUALIFYING_FIELDS = ["allergen_dairy", "allergen_milk", "allergen_egg"];
 
 // Options for the "Dietary" picker: the same 8 allergens the district's
 // own site offers (peanut, tree nut, milk, fish, shellfish, egg, wheat,
@@ -278,7 +276,7 @@ const EXCLUDE_FIELDS = [
   "allergen_soy",
   "allergen_sesame",
 ];
-const EXCLUDE_OPTIONS = [
+export const EXCLUDE_OPTIONS = [
   // `excluding: true` marks the ones that strike through items that
   // *have* the trait (get a 🚫 in the picker - see buildExcludePicker()
   // in app.js). Vegetarian/vegan are the opposite direction - they
@@ -290,3 +288,32 @@ const EXCLUDE_OPTIONS = [
   { field: "vegetarian", label: "Vegetarian", icon: "🥗" },
   { field: "vegan", label: "Vegan", icon: "🌿" },
 ];
+
+// Flat lookup: menuId (for Idea Center variants, `${baseId}__${variantKey}`)
+// -> menu info. Built once here so both the browser app and the ical-building
+// cron script (scripts/build-ical.js) share one index instead of each
+// re-deriving it from MENU_GROUPS.
+//   name        - full display name
+//   baseName    - name without the variant suffix (== name for anything
+//                 that isn't an Idea Center variant) - used as the header
+//                 when several variants get grouped together, see
+//                 groupSelectedMenus() in app.js
+//   school      - school name for the section header
+//   group       - site group (Elementary/Middle/High/Pre-K)
+//   apiId       - the real menu-type id to query (== id, except variants)
+//   dayFilter   - getDay() value this menu is restricted to, or null
+export const MENU_BY_ID = {};
+for (const g of MENU_GROUPS) {
+  for (const s of g.schools) {
+    for (const m of s.menus) {
+      MENU_BY_ID[m.id] = {
+        name: m.name,
+        baseName: m.baseName || m.name,
+        school: s.school,
+        group: g.group,
+        apiId: m.baseId || m.id,
+        dayFilter: typeof m.dayFilter === "number" ? m.dayFilter : null,
+      };
+    }
+  }
+}

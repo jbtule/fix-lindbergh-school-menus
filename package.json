@@ -1,0 +1,14 @@
+{
+  "name": "fix-lindbergh-school-menus",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build-ical": "node scripts/build-ical.js"
+  },
+  "dependencies": {
+    "ics": "^3.12.0"
+  }
+}

@@ -1,0 +1,38 @@
+name: Build and deploy ical feeds
+
+# Regenerates the .ics calendars from the vendor API (see
+# scripts/build-ical.js) and publishes them to Cloudflare Pages. Runs daily
+# since the district can revise a menu at any time, plus workflow_dispatch
+# for manual runs/testing.
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build-ical
+
+      # TODO(jay): create the "lindbergh-school-menus-unofficial" Cloudflare
+      # Pages project, then add the two repo secrets (Settings -> Secrets
+      # and variables -> Actions):
+      #   CLOUDFLARE_API_TOKEN   - a token with Cloudflare Pages:Edit
+      #   CLOUDFLARE_ACCOUNT_ID  - your Cloudflare account id
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist/ical --project-name=lindbergh-school-menus-unofficial
