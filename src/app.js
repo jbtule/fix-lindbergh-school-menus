@@ -371,15 +371,25 @@ let subscribeUrl = null; // the plain https .ics URL for whatever group is open
 //             identical pattern; we'd been passing the plain https: URL,
 //             which is the likely reason Google Calendar kept failing to
 //             load it ("Calendar could not load the data").
-//   outlook - Outlook.com's own "add calendar from web" screen, likewise
-//             pre-filled via query params.
+//   outlook - Outlook.com's own subscribe-modal deep link, likewise
+//             pre-filled via query params, https: URL (not webcal:).
+//             /calendar/0/addcalendar was an untested guess; this
+//             /owa?...&rru=addsubscription... form is the one actually
+//             confirmed working (a Microsoft Q&A thread, and the same
+//             pack3721.github.io/cub-cal reference that fixed the Google
+//             link above uses this exact pattern too). Reportedly only
+//             pre-fills the subscribe dialog when not already logged
+//             into outlook.live.com in that browser - logged in, it can
+//             show the "new event" compose dialog instead. Nothing we
+//             can do about that from our end; it's still the correct
+//             link either way.
 function calendarAppLink(app, url, name) {
   const webcalUrl = url.replace(/^https?:/, "webcal:");
   switch (app) {
     case "google":
       return `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`;
     case "outlook":
-      return `https://outlook.live.com/calendar/0/addcalendar?url=${encodeURIComponent(url)}&name=${encodeURIComponent(name)}`;
+      return `https://outlook.live.com/owa?path=/calendar/action/compose&rru=addsubscription&url=${encodeURIComponent(url)}&name=${encodeURIComponent(name)}`;
     default:
       return webcalUrl;
   }
