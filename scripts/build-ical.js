@@ -148,22 +148,29 @@ function allergensFor(product) {
   );
 }
 
-// Plain-text description for a calendar event: entrees first, then
-// everything else, one item per line with its flagged allergens in
-// parentheses. Deliberately simpler than the web app's grouped/categorized
-// rendering (renderSideGroups() etc. in app.js) - a calendar description
-// doesn't need collapsible sections, just a quick read of what's being
-// served and what's in it.
+// Plain-text description for a calendar event - no real bold/italic in a
+// DESCRIPTION field, most calendar apps just show it verbatim, so "emphasis"
+// here is structural: each entree gets its own 🍽-prefixed block (blank-line
+// separated, so multiple choices - see the "-or-" SUMMARY - each stand out
+// on their own) with its allergens directly underneath, then every side
+// bulleted together under one "Sides:" header, each with its own indented
+// allergen line where it has one. Deliberately simpler than the web app's
+// grouped/categorized rendering (renderSideGroups() etc. in app.js) - a
+// calendar description doesn't need collapsible sections, just a quick read.
 function describeDay(items) {
-  const entrees = items.filter((it) => it.product.category === "Entrees");
-  const sides = items.filter((it) => it.product.category !== "Entrees");
-  const lines = [...entrees, ...sides]
-    .filter((it) => it.product.name)
-    .map((it) => {
-      const allergens = allergensFor(it.product);
-      return allergens.length ? `${it.product.name} (Allergens: ${allergens.join(", ")})` : it.product.name;
-    });
-  return lines.join("\n");
+  const withAllergenLine = (prefix, it) => {
+    const allergens = allergensFor(it.product);
+    return allergens.length ? `${prefix}${it.product.name}\n${" ".repeat(prefix.length)}Allergens: ${allergens.join(", ")}` : `${prefix}${it.product.name}`;
+  };
+
+  const entrees = items.filter((it) => it.product.category === "Entrees" && it.product.name);
+  const sides = items.filter((it) => it.product.category !== "Entrees" && it.product.name);
+
+  const blocks = entrees.map((it) => withAllergenLine("🍽 ", it));
+  if (sides.length) {
+    blocks.push(`Sides:\n${sides.map((it) => withAllergenLine("• ", it)).join("\n")}`);
+  }
+  return blocks.join("\n\n");
 }
 
 // Multiple entrees on the same day are alternative choices, not a combo
