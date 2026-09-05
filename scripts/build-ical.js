@@ -9,9 +9,9 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createEvents } from "ics";
-import { MENU_BY_ID, ALLERGEN_DEFS, IDEA_CENTER_GRADE_BY_WEEKDAY } from "../config.js";
-import { fetchMonthsList, fetchMenuItems } from "../menu-api.js";
-import { icsSlugFor } from "../ical-naming.js";
+import { MENU_BY_ID, ALLERGEN_DEFS, IDEA_CENTER_GRADE_BY_WEEKDAY } from "../src/config.js";
+import { fetchMonthsList, fetchMenuItems } from "../src/menu-api.js";
+import { icsSlugFor } from "../src/ical-naming.js";
 
 const OUT_DIR = new URL("../dist/ical/", import.meta.url);
 

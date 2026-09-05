@@ -27,11 +27,11 @@ could stop working at any time.
   day, with that grade's badge only on their day, not all of them
 - Each day's items split into a clear **Entree** choice (or several, for
   high school lunch's food-station format - see the caveat in
-  `config.js`) vs. sides grouped by category, with **collapsible
+  `src/config.js`) vs. sides grouped by category, with **collapsible
   categories** (Vegetables/Fruits open by default, the rest collapsed) -
   a global, persisted preference
 - **Allergen badges** per item (icon-only with tap/hover for the name by
-  default; a full-text-label mode is a one-line flip in `app.js`),
+  default; a full-text-label mode is a one-line flip in `src/app.js`),
   including derived **Vegetarian**/**Vegan** badges (vegan requires none
   of dairy/milk/egg on top of the vegetarian flag)
 - A **"Dietary" picker** - peanut, tree nut, milk, fish, shellfish, egg,
@@ -48,7 +48,7 @@ could stop working at any time.
   auto-reloads itself when a new version is deployed
 - Optional Google Translate widget, matching the language list seen on
   the district's own site - a one-line flip (`TRANSLATE_WIDGET_ENABLED`
-  in `app.js`) to remove entirely. Printing gives an active translation a
+  in `src/app.js`) to remove entirely. Printing gives an active translation a
   real chance to apply to the print content before printing (a brief
   on-screen "Preparing translated print..." moment), rather than always
   printing in English
@@ -67,7 +67,7 @@ through its JS bundles turned up:
 
 Both have wide-open CORS (they reflect whatever `Origin` calls them), so
 this site calls them directly from the browser - no backend, no API key,
-just static files on GitHub Pages. `config.js` has the full story of how
+just static files on GitHub Pages. `src/config.js` has the full story of how
 each menu-type id was found, plus notes on data quirks encountered along
 the way (a blank-category gap in their data, a stale duplicate menu-type
 that got dropped, why high-school lunch's "food station" split is
@@ -84,7 +84,7 @@ dietary information, against the official source.
 `schoolnutritionandfitness.com` is a multi-tenant platform - if your
 district uses it too, this could plausibly be adapted. Every district is
 scoped under its own GraphQL `organization(id: "<sid>")`; the `sid` and
-individual menu-type ids in `config.js` would need to be rediscovered for
+individual menu-type ids in `src/config.js` would need to be rediscovered for
 a new district by walking the same `organization` -> `site` -> `menuTypes`
 chain documented there.
 
@@ -113,7 +113,7 @@ repo's Settings -> Pages -> Build and deployment -> Source to be set to
 
 ## ical feeds
 
-`menu-api.js` (the vendor fetch code) and `config.js` (the district's menu
+`src/menu-api.js` (the vendor fetch code) and `src/config.js` (the district's menu
 tree) are shared with `scripts/build-ical.js`, a Node script that builds a
 `.ics` calendar per menu - plus one per combination of Idea Center
 day-variants (e.g. "Tuesdays + Thursdays") - into `dist/ical/`. A scheduled

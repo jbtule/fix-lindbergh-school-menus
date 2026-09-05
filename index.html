@@ -9,16 +9,16 @@
   <meta property="og:title" content="Lindbergh School Menus (Unofficial)" />
   <meta property="og:description" content="An unofficial, mobile-friendly menu viewer for Lindbergh School District." />
   <meta property="og:url" content="https://jbtule.github.io/fix-lindbergh-school-menus/" />
-  <meta property="og:image" content="https://jbtule.github.io/fix-lindbergh-school-menus/social-card.jpg" />
+  <meta property="og:image" content="https://jbtule.github.io/fix-lindbergh-school-menus/icons/social-card.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Lindbergh School Menus (Unofficial)" />
   <meta name="twitter:description" content="An unofficial, mobile-friendly menu viewer for Lindbergh School District." />
-  <meta name="twitter:image" content="https://jbtule.github.io/fix-lindbergh-school-menus/social-card.jpg" />
+  <meta name="twitter:image" content="https://jbtule.github.io/fix-lindbergh-school-menus/icons/social-card.jpg" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="favicon-32.png" sizes="32x32" />
-  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="icon" href="icons/favicon-32.png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Unofficial Menus" />
   <meta name="theme-color" content="#2f6f4f" />
@@ -257,13 +257,13 @@
   <script src="version.js?v=dead"></script>
   <!-- Optional: high-school station boundary hints. Safe to remove - see
        the header comment in the file. -->
-  <script src="station-boundaries.js?v=dead"></script>
+  <script src="src/station-boundaries.js?v=dead"></script>
   <!-- app.js is an ES module and imports config.js/menu-api.js/
        ical-naming.js itself - their own cache-busting ?v= lives on those
        import specifiers inside app.js, not as separate tags here. Every
        ?v=dead in this file is a placeholder for local dev - the real
        values are computed and substituted at deploy time, see
        .github/workflows/deploy-pages.yml. -->
-  <script type="module" src="app.js?v=dead"></script>
+  <script type="module" src="src/app.js?v=dead"></script>
 </body>
 </html>

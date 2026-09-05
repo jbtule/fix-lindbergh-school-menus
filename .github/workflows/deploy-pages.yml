@@ -59,9 +59,9 @@ jobs:
 
       # Same technique the old hooks/pre-commit used locally, just run here
       # instead: rewrite app.js's own import specifiers first (its hash
-      # must reflect their final ?v=), then app.js/style.css/
-      # station-boundaries.js's <script> tags in index.html, then write a
-      # version.js whose hash covers all of the above.
+      # must reflect their final ?v=), then src/app.js/style.css/
+      # src/station-boundaries.js's <script> tags in index.html, then write
+      # a version.js whose hash covers all of the above.
       - name: Cache-bust and set version
         working-directory: _site
         run: |
@@ -70,23 +70,25 @@ jobs:
           bust() { # rewrites <script src="FILE?v=...">/<link href="FILE?v=...."> in index.html
             sed -E -i "s#(\"$1)(\?v=[^\"]*)?\"#\1?v=$2\"#" index.html
           }
-          bust_in() { # rewrites import "./MODULE?v=..." inside TARGET
+          bust_in() { # rewrites import "./MODULE?v=..." inside TARGET - MODULE
+            # has no directory component since every JS module lives together
+            # in src/, so the import specifier is always just "./MODULE".
             sed -E -i "s#(\"\./$2)(\?v=[^\"]*)?\"#\1?v=$3\"#" "$1"
           }
 
-          OPTIONAL_FILES="station-boundaries.js"
+          OPTIONAL_FILES="src/station-boundaries.js"
 
-          bust_in app.js config.js "$(hash_of config.js)"
-          bust_in app.js menu-api.js "$(hash_of menu-api.js)"
-          bust_in app.js ical-naming.js "$(hash_of ical-naming.js)"
+          bust_in src/app.js config.js "$(hash_of src/config.js)"
+          bust_in src/app.js menu-api.js "$(hash_of src/menu-api.js)"
+          bust_in src/app.js ical-naming.js "$(hash_of src/ical-naming.js)"
 
-          bust app.js "$(hash_of app.js)"
+          bust src/app.js "$(hash_of src/app.js)"
           bust style.css "$(hash_of style.css)"
           for f in $OPTIONAL_FILES; do
             [ -f "$f" ] && bust "$f" "$(hash_of "$f")"
           done
 
-          version_inputs="app.js config.js style.css menu-api.js ical-naming.js"
+          version_inputs="src/app.js src/config.js style.css src/menu-api.js src/ical-naming.js"
           for f in $OPTIONAL_FILES; do
             [ -f "$f" ] && version_inputs="$version_inputs $f"
           done
