@@ -1821,6 +1821,10 @@ document.getElementById("printPanelScrim").addEventListener("click", closePrintP
 for (const radio of document.querySelectorAll('input[name="calendarApp"]')) {
   radio.addEventListener("change", updateSubscribeLink);
 }
+// Same "picking an action closes the panel" pattern as the print panel -
+// doesn't wait to see whether the webcal:/Google/Outlook handoff actually
+// succeeds, just like printPanelGo doesn't wait for the print dialog.
+document.getElementById("subscribeLink").addEventListener("click", closeSubscribePanel);
 document.getElementById("subscribePanelClose").addEventListener("click", closeSubscribePanel);
 document.getElementById("subscribePanelScrim").addEventListener("click", closeSubscribePanel);
 
