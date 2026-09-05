@@ -66,6 +66,25 @@ export const DISTRICT_SID = "1786638906029";
 // fetcher is one plausible explanation worth ruling out.
 export const ICAL_BASE_URL = "https://lindbergh-school-menus-unofficial.asset-data.stream";
 
+// The district's own event calendar - runs on a shared Finalsite CMS
+// backend where calendar_ids is one global id space, not scoped per
+// subdomain (confirmed: e.g. Sperreng Middle School's own id, 6, returns
+// the identical calendar via either sms.lindberghschools.ws or this main
+// www one). calendar_ids=4 here is the district-wide PK-12 calendar -
+// checked directly against one school's own calendar from every level the
+// district has (elementary/Sappington id 15, middle/Sperreng id 6 and
+// Truman id 19, high school/Lindbergh HS id 18, Pre-K/ECE id 11), and in
+// every case its "No School ..." all-day events were a superset of that
+// school's own, with zero exceptions - so this one feed alone is enough to
+// know real no-school days without tracking every school's own id.
+//
+// Used only by scripts/build-ical.js (not app.js directly - this endpoint
+// has no CORS headers, confirmed with `curl -H "Origin: ..."`, so only a
+// server-side fetch can read it) to build no-school-days.json, published
+// alongside the .ics files for the app to fetch instead.
+export const SCHOOL_CALENDAR_ICS_URL =
+  "https://www.lindberghschools.ws/fs/calendar-manager/events.ics?calendar_ids=4";
+
 // The variants every Idea Center menu gets split into. dayFilter is a
 // getDay() value (1=Mon..4=Thu) or null for "every day". Keep this in sync
 // with IDEA_CENTER_GRADE_BY_WEEKDAY below - it's the source of the labels.

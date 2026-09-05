@@ -9,7 +9,7 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createEvents } from "ics";
-import { MENU_BY_ID, ALLERGEN_DEFS, IDEA_CENTER_GRADE_BY_WEEKDAY } from "../src/config.js";
+import { MENU_BY_ID, ALLERGEN_DEFS, IDEA_CENTER_GRADE_BY_WEEKDAY, SCHOOL_CALENDAR_ICS_URL } from "../src/config.js";
 import { fetchMonthsList, fetchMenuItems } from "../src/menu-api.js";
 import { icsSlugFor } from "../src/ical-naming.js";
 
@@ -260,6 +260,38 @@ async function buildCalendar(target) {
   return withPublishedTTL(value);
 }
 
+// Parses the district's own event calendar (see SCHOOL_CALENDAR_ICS_URL in
+// config.js) for "No School ..." all-day events, expanding each into every
+// individual date it covers (DTEND is exclusive, same convention this
+// file's own generated events use - see the endDate comment above).
+// Hand-rolled rather than pulling in an ics-parsing dependency: this only
+// ever needs three fields out of a much bigger feed (board meetings and
+// the like, which have no DTSTART;VALUE=DATE and so are skipped outright).
+function parseNoSchoolDays(icsText) {
+  const dates = new Set();
+  const toYMD = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const parseDateStamp = (s) => new Date(Number(s.slice(0, 4)), Number(s.slice(4, 6)) - 1, Number(s.slice(6, 8)));
+  for (const block of icsText.split("BEGIN:VEVENT").slice(1)) {
+    const startMatch = block.match(/DTSTART;VALUE=DATE:(\d{8})/);
+    if (!startMatch) continue; // a timed (non-all-day) event, e.g. a board meeting
+    const summaryMatch = block.match(/SUMMARY:(.*)/);
+    if (!summaryMatch || !/no school/i.test(summaryMatch[1])) continue;
+    const endMatch = block.match(/DTEND;VALUE=DATE:(\d{8})/);
+    const start = parseDateStamp(startMatch[1]);
+    const end = endMatch ? parseDateStamp(endMatch[1]) : new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
+    for (const d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+      dates.add(toYMD(d));
+    }
+  }
+  return [...dates].sort();
+}
+
+async function buildNoSchoolDays() {
+  const res = await fetch(SCHOOL_CALENDAR_ICS_URL);
+  if (!res.ok) throw new Error(`school calendar fetch failed: ${res.status}`);
+  return parseNoSchoolDays(await res.text());
+}
+
 async function main() {
   await rm(OUT_DIR, { recursive: true, force: true });
   await mkdir(OUT_DIR, { recursive: true });
@@ -277,6 +309,20 @@ async function main() {
     }
   }
   console.log(`Wrote ${ok}/${targets.length} calendars to ${path.relative(process.cwd(), OUT_DIR.pathname)}`);
+
+  // Published alongside the .ics files above so it inherits the same
+  // daily refresh and open CORS - app.js can't fetch SCHOOL_CALENDAR_ICS_URL
+  // directly (see the comment on it in config.js). A failure here doesn't
+  // fail the whole build: app.js already falls back to its own heuristic
+  // when this file is missing or stale.
+  try {
+    const noSchoolDays = await buildNoSchoolDays();
+    await writeFile(new URL("no-school-days.json", OUT_DIR), JSON.stringify(noSchoolDays));
+    console.log(`Wrote ${noSchoolDays.length} no-school dates to no-school-days.json`);
+  } catch (err) {
+    console.error(`Failed to build no-school-days.json: ${err.message}`);
+  }
+
   if (ok === 0) process.exitCode = 1;
 }
 

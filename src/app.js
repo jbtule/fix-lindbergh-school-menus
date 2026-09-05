@@ -920,6 +920,30 @@ function syncWeekScrolls() {
   }
 }
 
+function toISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// The district's own event calendar (see SCHOOL_CALENDAR_ICS_URL in
+// config.js) says which days actually have no school, distilled by
+// scripts/build-ical.js's daily cron into this small same-origin-CORS
+// JSON - that endpoint itself has no CORS headers, so the browser can't
+// fetch it directly. Cached for the page's lifetime (one request, however
+// many empty days get checked against it); resolves to an empty Set on
+// any failure (offline, not yet published, ICAL_BASE_URL unreachable)
+// rather than rejecting, so a day just falls back to fetchDayItems()'s
+// own heuristic instead of erroring.
+let noSchoolDaysPromise = null;
+function fetchNoSchoolDays() {
+  if (!noSchoolDaysPromise) {
+    noSchoolDaysPromise = fetch(`${ICAL_BASE_URL}/no-school-days.json`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((dates) => new Set(dates))
+      .catch(() => new Set());
+  }
+  return noSchoolDaysPromise;
+}
+
 // Computes the HTML for one menu on one date - shared by day view (one
 // call) and week view (one call per weekday column). Never touches the
 // DOM directly, so it works the same either way.
@@ -962,14 +986,22 @@ async function fetchDayItems(info, date) {
   );
 
   if (dayItems.length === 0) {
-    // The API has no holiday/day-off flag at all, so there's no way to know
-    // *why* a day has no items - could be a holiday, an in-service day, or
-    // just a gap in the district's data. What IS knowable from data already
-    // fetched: whether a LATER day this same month already has items. If
-    // so, the district has clearly published past this point, so this gap
-    // is intentional rather than "not entered yet" - but that's all this
-    // signal supports claiming; it says nothing about the reason, so
-    // "yet" is the only word this drops, not a guess at what the day is.
+    // First choice: the district's own calendar (see fetchNoSchoolDays())
+    // says definitively, not a guess, whether this is an actual day off.
+    const noSchoolDays = await fetchNoSchoolDays();
+    if (noSchoolDays.has(toISODate(date))) {
+      return { kind: "empty", message: "No school today.", isNoSchoolDay: true };
+    }
+    // Fallback: the menu API has no holiday/day-off flag at all, so absent
+    // the calendar above there's no way to know *why* a day has no items -
+    // could be a holiday the calendar just doesn't have yet, an in-service
+    // day, or a gap in the district's menu data. What IS knowable from data
+    // already fetched: whether a LATER day this same month already has
+    // items. If so, the district has clearly published past this point, so
+    // this gap is intentional rather than "not entered yet" - but that's
+    // all this weaker signal supports claiming; it says nothing about the
+    // reason, so "yet" is the only word this drops, not a guess at what the
+    // day is.
     const hasLaterItems = items.some((it) => it.day > date.getDate());
     return {
       kind: "empty",
@@ -1171,8 +1203,13 @@ async function computeMonthEntrees(info, date) {
   // "yet" implies it's still coming - drop it once a later day this same
   // month already has data, since that means this gap is intentional, not
   // pending (though not why - see the hasLaterItems comment in
-  // fetchDayItems()).
-  if (result.kind === "empty") return { note: result.hasLaterItems ? "No menu" : "No menu yet" };
+  // fetchDayItems()). isNoSchoolDay is the stronger, confirmed case - the
+  // district's own calendar, not a guess - so it gets its own definitive
+  // label rather than just "No menu".
+  if (result.kind === "empty") {
+    if (result.isNoSchoolDay) return { note: "No school" };
+    return { note: result.hasLaterItems ? "No menu" : "No menu yet" };
+  }
 
   const entrees = result.items.filter((it) => it.product.category === "Entrees");
   if (entrees.length === 0) return { note: "No menu yet" };
