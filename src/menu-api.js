@@ -57,9 +57,27 @@ export function writeLocalCache(key, value) {
 // an apiId) would otherwise re-fetch the same month-listing repeatedly.
 const monthListCache = new Map();
 
+const monthsListCacheKey = (menuTypeId) => `months.${menuTypeId}`;
+const menuItemsCacheKey = (docId) => `items.${docId}`;
+
+// Synchronous, network-free peeks at the persisted cache - used by app.js
+// to paint a menu instantly from whatever was last successfully fetched
+// (a prior visit, possibly a prior session entirely) while the real,
+// network-first fetchMonthsList()/fetchMenuItems() below run in the
+// background and repaint with the current data once they resolve. Returns
+// null on a cache miss - never guess at content that was never actually
+// fetched.
+export function peekCachedMonthsList(menuTypeId) {
+  return readLocalCache(monthsListCacheKey(menuTypeId));
+}
+
+export function peekCachedMenuItems(docId) {
+  return readLocalCache(menuItemsCacheKey(docId));
+}
+
 export async function fetchMonthsList(menuTypeId) {
   if (monthListCache.has(menuTypeId)) return monthListCache.get(menuTypeId);
-  const cacheKey = `months.${menuTypeId}`;
+  const cacheKey = monthsListCacheKey(menuTypeId);
   let menus;
   try {
     const url = `${MENUTYPE_URL}/show-raw?_id=${encodeURIComponent(menuTypeId)}`;
@@ -94,7 +112,7 @@ const itemsCache = new Map(); // docId -> Promise<items[]>
 
 export async function fetchMenuItems(docId) {
   if (itemsCache.has(docId)) return itemsCache.get(docId);
-  const cacheKey = `items.${docId}`;
+  const cacheKey = menuItemsCacheKey(docId);
   const query = `{
     menu(id: "${docId}") {
       id

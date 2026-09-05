@@ -23,6 +23,8 @@ import {
   fetchMonthsList,
   fetchDocIdForDate,
   fetchMenuItems,
+  peekCachedMonthsList,
+  peekCachedMenuItems,
   readLocalCache,
   writeLocalCache,
 } from "./menu-api.js?v=dead";
@@ -1136,12 +1138,45 @@ async function fetchDayItems(info, date) {
   return { items: dayItems };
 }
 
-async function computeDayHtml(info, date) {
+// Synchronous, network-free equivalent of fetchDayItems() - used only to
+// paint something instantly from whatever's in the persisted cache (see
+// peekCachedMonthsList()/peekCachedMenuItems() in menu-api.js) while the
+// real fetch below runs in the background. Deliberately narrower than
+// fetchDayItems(): a genuine cache miss (nothing to peek at yet) or an
+// empty day (could be a real day off, could be nothing published yet -
+// fetchDayItems()'s no-school-calendar lookup is what actually knows
+// which) both return null rather than guessing - callers just keep
+// showing "Loading..." until the real fetch resolves either of those.
+function peekDayItems(info, date) {
   const weekday = date.getDay();
+  if (!info.hasFullWeek && !info.specificDays.has(weekday)) return null;
+  const months = peekCachedMonthsList(info.apiId);
+  if (!months) return null;
+  const match = months.find(
+    (m) => Number(m.month) === date.getMonth() && Number(m.year) === date.getFullYear()
+  );
+  if (!match) return null;
+  const items = peekCachedMenuItems(match._id.$id);
+  if (!items) return null;
+  const dayItems = items.filter(
+    (it) => it.day === date.getDate() && it.product && !isHiddenFromWebView(it.product)
+  );
+  return dayItems.length ? dayItems : null;
+}
 
+async function computeDayHtml(info, date) {
   const result = await fetchDayItems(info, date);
   if (result.kind) return `<p class="${result.kind}">${result.message}</p>`;
-  const dayItems = result.items;
+  return renderDayHtml(info, date, result.items);
+}
+
+// The actual entree/side/station HTML for one menu's one day, given its
+// items - split out from computeDayHtml() so renderOneMenu()/
+// renderOneMenuWeek() can also call it synchronously against a cache peek
+// (see peekDayItems() above) for an instant first paint, before the real
+// network-backed computeDayHtml() resolves and repaints with live data.
+function renderDayHtml(info, date, dayItems) {
+  const weekday = date.getDay();
 
   // Only shows on a day that was explicitly selected as that grade's day
   // (specificDays) - never just because "Full Week" happens to include
@@ -1262,15 +1297,24 @@ async function computeDayHtml(info, date) {
 
 async function renderOneMenu(info, bodyEl) {
   if (!bodyEl) return;
+  // Instant paint from whatever's already cached (see peekDayItems()) -
+  // skips the visible "Loading..." flash on a fresh page load for any menu
+  // that's been viewed before, since the vendor round trip is usually the
+  // slowest part of getting anything on screen at all. Left untouched
+  // (still showing "Loading...") on a genuine cache miss - a menu that's
+  // never been fetched has nothing to paint early. Either way, the real
+  // fetch below still runs and repaints with the live result once it
+  // resolves, so a stale cache never has the last word.
+  const cachedItems = peekDayItems(info, state.currentDate);
+  if (cachedItems) bodyEl.innerHTML = renderDayHtml(info, state.currentDate, cachedItems);
   bodyEl.innerHTML = await computeDayHtml(info, state.currentDate);
 }
 
-async function renderOneMenuWeek(info, bodyEl) {
-  if (!bodyEl) return;
-  const dates = weekDatesFor(state.currentDate);
-  const dayHtmls = await Promise.all(dates.map((d) => computeDayHtml(info, d)));
-
-  const cardsHtml = dates
+// Shared by both the instant cache-paint and the real fetch below - the
+// week's day cards are identical either way, just built from a different
+// source of per-day HTML.
+function weekCardsHtml(dates, dayHtmls) {
+  return dates
     .map((d, i) => {
       let cls = "weekDayCard";
       if (isToday(d)) cls += " today";
@@ -1293,8 +1337,25 @@ async function renderOneMenuWeek(info, bodyEl) {
       `;
     })
     .join("");
+}
 
-  bodyEl.innerHTML = `<div class="weekScroll">${cardsHtml}</div>`;
+async function renderOneMenuWeek(info, bodyEl) {
+  if (!bodyEl) return;
+  const dates = weekDatesFor(state.currentDate);
+
+  // Instant paint from cache (see renderOneMenu()'s comment) - a day with
+  // nothing cached yet just keeps showing "Loading..." in its own column
+  // rather than blocking the whole week on one uncached day.
+  const cachedPerDay = dates.map((d) => peekDayItems(info, d));
+  if (cachedPerDay.some(Boolean)) {
+    const cachedHtmls = dates.map((d, i) =>
+      cachedPerDay[i] ? renderDayHtml(info, d, cachedPerDay[i]) : `<p class="loading">Loading...</p>`
+    );
+    bodyEl.innerHTML = `<div class="weekScroll">${weekCardsHtml(dates, cachedHtmls)}</div>`;
+  }
+
+  const dayHtmls = await Promise.all(dates.map((d) => computeDayHtml(info, d)));
+  bodyEl.innerHTML = `<div class="weekScroll">${weekCardsHtml(dates, dayHtmls)}</div>`;
 }
 
 function escapeHtml(s) {
