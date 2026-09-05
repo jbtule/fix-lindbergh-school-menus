@@ -195,12 +195,22 @@ const REFRESH_INTERVAL = "P1D";
 
 // The `ics` package hardcodes X-PUBLISHED-TTL to PT1H with no way to
 // configure it (see node_modules/ics/dist/pipeline/format.js) - rewritten
-// here to REFRESH_INTERVAL instead, and REFRESH-INTERVAL (the newer RFC
-// 7986 property some clients prefer) added alongside it.
-function withRefreshInterval(ics) {
-  return ics
-    .replace("X-PUBLISHED-TTL:PT1H\r\n", `X-PUBLISHED-TTL:${REFRESH_INTERVAL}\r\n`)
-    .replace("CALSCALE:GREGORIAN\r\n", `CALSCALE:GREGORIAN\r\nREFRESH-INTERVAL;VALUE=DURATION:${REFRESH_INTERVAL}\r\n`);
+// here to REFRESH_INTERVAL instead.
+//
+// Deliberately NOT also adding REFRESH-INTERVAL (the newer RFC 7986
+// equivalent, formally registered rather than X-prefixed): Google
+// Calendar's "subscribe from URL" flow was rejecting every feed
+// ("Calendar could not load the data"), including ones it had never seen
+// before - so not a stale-cache issue - and this property (added, then
+// removed, while chasing that) is the prime suspect: Google's
+// subscription backend is old, and an unrecognized-but-formally-IANA
+// property is more likely to trip up a non-compliant parser than an
+// X-prefixed one, which every RFC5545 parser is required to tolerate
+// even without understanding it. Unconfirmed against Google directly
+// (no way to test that from here) - revert this if removing it doesn't
+// actually fix the reported failure.
+function withPublishedTTL(ics) {
+  return ics.replace("X-PUBLISHED-TTL:PT1H\r\n", `X-PUBLISHED-TTL:${REFRESH_INTERVAL}\r\n`);
 }
 
 async function buildCalendar(target) {
@@ -230,9 +240,15 @@ async function buildCalendar(target) {
       const header = target.baseName
         ? `${target.baseName} - ${IDEA_CENTER_GRADE_BY_WEEKDAY[date.getDay()]}`
         : target.title;
+      // All-day event: end is exclusive, the day after start. Using an
+      // explicit end date rather than `duration: { days: 1 }` - the `ics`
+      // package serializes that as "DURATION:P1DT", a malformed ISO 8601
+      // duration (a bare trailing "T" with no H/M/S after it), which Apple
+      // Calendar tolerates but Google Calendar's stricter parser rejects.
+      const endDate = new Date(year, month, day + 1);
       events.push({
         start: [year, month + 1, day], // ics months are 1-indexed
-        duration: { days: 1 },
+        end: [endDate.getFullYear(), endDate.getMonth() + 1, endDate.getDate()],
         title: titleForDay(dayItems, target),
         description: `${header}\n\n${description}`,
         uid: `${target.slug}-${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}@fix-lindbergh-school-menus`,
@@ -241,7 +257,7 @@ async function buildCalendar(target) {
   }
   const { error, value } = createEvents(events, { calName: target.title });
   if (error) throw error;
-  return withRefreshInterval(value);
+  return withPublishedTTL(value);
 }
 
 async function main() {

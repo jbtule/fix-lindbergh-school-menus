@@ -58,8 +58,13 @@ export const DISTRICT_SID = "1786638906029";
 
 // Where scripts/build-ical.js's cron job deploys its .ics files (see
 // .github/workflows/build-ical.yml) - used by app.js to build "subscribe to
-// this calendar" links. Must match the Cloudflare Pages project name there.
-export const ICAL_BASE_URL = "https://lindbergh-school-menus-unofficial.pages.dev";
+// this calendar" links. A custom domain rather than the project's default
+// *.pages.dev one - partly for its own sake, partly because Google
+// Calendar's subscribe-from-URL flow was failing outright ("Calendar could
+// not load the data") even for feeds it had never seen before, and a
+// generic shared-hosting domain being distrusted/rate-limited by Google's
+// fetcher is one plausible explanation worth ruling out.
+export const ICAL_BASE_URL = "https://lindbergh-school-menus-unofficial.asset-data.stream";
 
 // The variants every Idea Center menu gets split into. dayFilter is a
 // getDay() value (1=Mon..4=Thu) or null for "every day". Keep this in sync
