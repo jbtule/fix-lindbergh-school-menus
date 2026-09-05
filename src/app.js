@@ -365,17 +365,23 @@ let subscribeUrl = null; // the plain https .ics URL for whatever group is open
 //             directly, no site visit involved.
 //   google  - undocumented but long-stable "render?cid=" deep link that
 //             opens Google Calendar straight to its own add-subscription
-//             confirmation, pre-filled.
+//             confirmation, pre-filled. The cid value itself needs to be
+//             a webcal: URL, not https: - confirmed against a working
+//             third-party site (pack3721.github.io/cub-cal) using the
+//             identical pattern; we'd been passing the plain https: URL,
+//             which is the likely reason Google Calendar kept failing to
+//             load it ("Calendar could not load the data").
 //   outlook - Outlook.com's own "add calendar from web" screen, likewise
 //             pre-filled via query params.
 function calendarAppLink(app, url, name) {
+  const webcalUrl = url.replace(/^https?:/, "webcal:");
   switch (app) {
     case "google":
-      return `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(url)}`;
+      return `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`;
     case "outlook":
       return `https://outlook.live.com/calendar/0/addcalendar?url=${encodeURIComponent(url)}&name=${encodeURIComponent(name)}`;
     default:
-      return url.replace(/^https?:/, "webcal:");
+      return webcalUrl;
   }
 }
 
