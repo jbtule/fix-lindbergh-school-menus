@@ -50,12 +50,17 @@ function startOfDay(d) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-// Today, unless it's past END_OF_DAY_HOUR - then tomorrow, since that's
-// what's actually relevant to check next.
+// Today, unless it's past END_OF_DAY_HOUR - then the next day, since
+// that's what's actually relevant to check next. Either way, school menus
+// never have weekend data (see weekDatesFor()), so a landing on Sat/Sun
+// keeps advancing to the following Monday instead of showing an empty day.
 function defaultDate() {
   const now = new Date();
   const d = startOfDay(now);
   if (now.getHours() >= END_OF_DAY_HOUR) {
+    d.setDate(d.getDate() + 1);
+  }
+  while (d.getDay() === 0 || d.getDay() === 6) {
     d.setDate(d.getDate() + 1);
   }
   return d;
@@ -437,10 +442,19 @@ function renderDayLabel() {
 
 // One day at a time in day view; a full Mon-Fri week at a time in week
 // view, so the arrows always mean "next/previous thing you're looking at".
+// Day view also skips weekends - school menus never have weekend data (see
+// weekDatesFor()) - continuing in the same direction rather than landing on
+// an empty Sat/Sun. Week view doesn't need this: +/-7 days always lands on
+// the same weekday it started on.
 function changeDay(delta) {
   const step = state.viewMode === "week" ? delta * 7 : delta;
   const d = new Date(state.currentDate);
   d.setDate(d.getDate() + step);
+  if (state.viewMode !== "week") {
+    while (d.getDay() === 0 || d.getDay() === 6) {
+      d.setDate(d.getDate() + (delta < 0 ? -1 : 1));
+    }
+  }
   state.currentDate = d;
   renderDayLabel();
   renderSections();
@@ -452,16 +466,18 @@ function goToToday() {
   renderSections();
 }
 
-// The button jumps to defaultDate(), which is tomorrow after
-// END_OF_DAY_HOUR - so it should say so, rather than always saying "Today"
-// and jumping to tomorrow anyway.
+// The button jumps to defaultDate(), which is the next day after
+// END_OF_DAY_HOUR (and always skips straight past any weekend) - so it
+// should say so, rather than always saying "Today" and jumping ahead
+// anyway. "Next Weekday" rather than "Tomorrow" since that's not always
+// literally tomorrow - e.g. Friday evening, or any time Sat/Sun.
 function updateTodayButtonLabel() {
   const btn = document.getElementById("todayBtn");
   const isToday = defaultDate().getTime() === startOfDay(new Date()).getTime();
-  btn.textContent = isToday ? "Jump to Today" : "Jump to Tomorrow";
+  btn.textContent = isToday ? "Jump to Today" : "Jump to Next Weekday";
   btn.title = isToday
     ? "Show today's menu"
-    : "Show tomorrow's menu - after 4pm, today's menu isn't useful anymore, so this jumps ahead";
+    : "Show the next school day's menu - skips weekends, and jumps ahead after 4pm since today's menu isn't useful anymore";
 }
 
 function setViewMode(mode) {
@@ -801,8 +817,8 @@ async function renderSections() {
 }
 
 // Scrolls to whichever date the nav is pointing at (the ".current" card -
-// see renderOneMenuWeek) so e.g. "Jump to Tomorrow" actually brings
-// tomorrow into view instead of leaving the row sitting on Monday. Only
+// see renderOneMenuWeek) so e.g. "Jump to Next Weekday" actually brings
+// that day into view instead of leaving the row sitting on Monday. Only
 // needs to run on one row: syncWeekScrolls()'s listener mirrors the
 // resulting scroll position onto every other selected menu's row as it
 // animates.
@@ -1022,7 +1038,7 @@ async function renderOneMenuWeek(info, bodyEl) {
       let cls = "weekDayCard";
       if (isToday(d)) cls += " today";
       // Scroll target for scrollWeekToCurrentDate() - real today, or
-      // whatever "Jump to Today/Tomorrow" points to right now. Both
+      // whatever "Jump to Today/Next Weekday" points to right now. Both
       // computed fresh against the clock (not state.currentDate): paging
       // week-to-week shifts state.currentDate by whole weeks, which
       // preserves its weekday forever, so matching against it directly
