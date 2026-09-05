@@ -309,6 +309,16 @@ export const SNACK_MEAL_NAMES = new Set(["Flyers Club", "Snack"]);
 // where SNACK_MEAL_NAMES applies.
 export const SNACK_EXCLUDED_CATEGORIES = new Set(["Milk", "Condiment"]);
 
+// Juice (e.g. "100% Fruit Punch Juice") is filed under the same "Fruit"
+// category as real solid fruit (e.g. "Fresh Orange Slices"), so it can't be
+// excluded by category the way milk/condiments are without also demoting
+// actual fruit snacks - caught by name instead. Every ECE Snack day with a
+// juice item also has real food alongside it (confirmed against a full
+// year of published menus), so excluding it here never leaves a day empty.
+export function isSnackSideItem(product) {
+  return SNACK_EXCLUDED_CATEGORIES.has(product.category) || /\bjuice\b/i.test(product.name || "");
+}
+
 // Each product comes back with a boolean-ish allergen_* field per allergen
 // ("1"/null, not a real boolean - see isAllergenFlagged() in app.js).
 // `icon` is emoji, shown as a badge next to the item. Where two fields

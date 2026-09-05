@@ -17,7 +17,7 @@ import {
   ICAL_BASE_URL,
   mealEmoji,
   SNACK_MEAL_NAMES,
-  SNACK_EXCLUDED_CATEGORIES,
+  isSnackSideItem,
 } from "./config.js?v=dead";
 import { fetchMonthsList, fetchDocIdForDate, fetchMenuItems } from "./menu-api.js?v=dead";
 import { icsSlugFor } from "./ical-naming.js?v=dead";
@@ -1165,17 +1165,17 @@ async function computeDayHtml(info, date) {
           // Flyers Club/Snack menus (see SNACK_MEAL_NAMES) are special-cased
           // further: their real food is the whole meal, not a side that
           // comes along with a "real" entree, so it counts as an entree
-          // here rather than being filtered by category. Milk/condiments
-          // (SNACK_EXCLUDED_CATEGORIES) still ride along as ordinary
+          // here rather than being filtered by category. Milk, condiments,
+          // and juice (see isSnackSideItem()) still ride along as ordinary
           // sides even here - ECE's Snack menu pairs those with its
           // actual food, and they aren't "the snack" the way that food is.
           groups: (() => {
             const isSnackMenu = SNACK_MEAL_NAMES.has(info.name);
             const entrees = isSnackMenu
-              ? dayItems.filter((it) => !SNACK_EXCLUDED_CATEGORIES.has(it.product.category))
+              ? dayItems.filter((it) => !isSnackSideItem(it.product))
               : dayItems.filter((it) => it.product.category === "Entrees");
             const sides = isSnackMenu
-              ? dayItems.filter((it) => SNACK_EXCLUDED_CATEGORIES.has(it.product.category))
+              ? dayItems.filter((it) => isSnackSideItem(it.product))
               : dayItems.filter((it) => it.product.category !== "Entrees");
             return entrees.length || sides.length ? [{ entrees, sides }] : [];
           })(),
@@ -1338,10 +1338,10 @@ async function computeMonthEntrees(info, date) {
 
   // Flyers Club/Snack (see SNACK_MEAL_NAMES): the real food is never filed
   // under "Entrees" - treat it as an entree rather than filtering by
-  // category, same as computeDayHtml() above, excluding milk/condiments
-  // (SNACK_EXCLUDED_CATEGORIES) the same way.
+  // category, same as computeDayHtml() above, excluding milk/condiments/
+  // juice (isSnackSideItem()) the same way.
   const entrees = SNACK_MEAL_NAMES.has(info.name)
-    ? result.items.filter((it) => !SNACK_EXCLUDED_CATEGORIES.has(it.product.category))
+    ? result.items.filter((it) => !isSnackSideItem(it.product))
     : result.items.filter((it) => it.product.category === "Entrees");
   if (entrees.length === 0) return { note: "No menu yet" };
   return { items: sortItemsForDay(entrees) };
@@ -1389,13 +1389,13 @@ async function computeDayItemsForPrint(info, date) {
   // Flyers Club/Snack (see SNACK_MEAL_NAMES): remap every item's row to
   // "Entrees" so it lands in the print table's always-first row rather than
   // whatever side category the district actually filed it under - matches
-  // the on-screen treatment in computeDayHtml(). Milk/condiments
-  // (SNACK_EXCLUDED_CATEGORIES) keep their own real category/row instead.
+  // the on-screen treatment in computeDayHtml(). Milk, condiments, and
+  // juice (isSnackSideItem()) keep their own real category/row instead.
   const isSnackMenu = SNACK_MEAL_NAMES.has(info.name);
   const byCategory = new Map();
   for (const it of result.items) {
     const cat =
-      isSnackMenu && !SNACK_EXCLUDED_CATEGORIES.has(it.product.category)
+      isSnackMenu && !isSnackSideItem(it.product)
         ? "Entrees"
         : it.product.category || "";
     if (!byCategory.has(cat)) byCategory.set(cat, []);
