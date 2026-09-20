@@ -527,6 +527,54 @@ main {
   height: 20px;
 }
 
+/* Full-width so it gets its own line above the badges; otherwise the same
+   quiet underlined-text treatment as .disclaimerLink and .installHint. */
+.shareLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  background: none;
+  border: none;
+  margin: 0 0 0.5rem;
+  padding: 0.4rem 1rem;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.shareLinkIcon {
+  flex: none;
+  opacity: 0.8;
+}
+
+.shareBody {
+  text-align: center;
+}
+
+/* Always dark-on-white, whatever the theme - a QR code on a dark card
+   background is much harder for a phone camera to lock onto, so the SVG
+   carries its own white background and this just pads it out into a
+   small "sticker". */
+.shareQr {
+  display: block;
+  width: 220px;
+  max-width: 100%;
+  height: auto;
+  margin: 1rem auto;
+  padding: 0.5rem;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.shareBody .subscribeUrlHint {
+  text-align: left;
+}
+
 
 .menuSection {
   margin-bottom: 0;

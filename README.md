@@ -60,6 +60,13 @@ could stop working at any time.
   browser supports it, or walks through the manual Add to Home Screen
   steps on iOS Safari, which doesn't. Auto-reloads itself when a new
   version is deployed
+- **Share this site** - a quiet link in the footer opens a QR code of the
+  site's URL (for handing it to another parent in person) plus a Share
+  button: the phone's native share sheet where available, copy-link
+  elsewhere. Word of mouth is the only way an unofficial site spreads.
+  The QR code is a pre-rendered `icons/qr.svg`, not generated at runtime;
+  if the site ever moves, regenerate it (and `SHARE_URL` in `src/app.js`)
+  with e.g. `npx qrcode -t svg -o icons/qr.svg -e M -m 2 <url>`
 - **Works offline, and skips the loading flash on repeat visits**: every
   fetched menu, and the no-school calendar, is cached to `localStorage`.
   A menu that's been viewed before paints instantly from that cache while

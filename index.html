@@ -219,6 +219,35 @@
   </aside>
   <div id="installPanelScrim" class="pickerScrim" hidden></div>
 
+  <!-- Word of mouth is the only way an unofficial site like this spreads,
+       so make handing it to another parent a one-tap thing. The QR code
+       is a pre-rendered SVG (icons/qr.svg) of the site's fixed URL, not
+       generated in the browser - no library to ship, nothing to compute,
+       and the URL it encodes never changes. Regenerate it (see README)
+       if the site ever moves. -->
+  <aside id="sharePanel" class="picker picker--compact" hidden>
+    <div class="pickerHeader">
+      <h2>Share this site</h2>
+      <button id="sharePanelClose" class="iconBtn" aria-label="Close">&times;</button>
+    </div>
+    <div class="pickerBody shareBody">
+      <p>Know another Lindbergh parent who'd find this handy? Let them scan this with their phone camera:</p>
+      <img class="shareQr" src="icons/qr.svg" width="220" height="220"
+           alt="QR code for tools.tuley.name/fix-lindbergh-school-menus" />
+      <p class="subscribeUrlHint">
+        Or send them the link:
+        <code id="shareUrl" class="notranslate" translate="no">https://tools.tuley.name/fix-lindbergh-school-menus/</code>
+      </p>
+    </div>
+    <div class="pickerFooter">
+      <!-- Label/behaviour set by wireSharePanel() (app.js): the OS share
+           sheet where navigator.share exists (phones), copy-to-clipboard
+           elsewhere. -->
+      <button id="sharePanelGo" class="primaryBtn">Share&hellip;</button>
+    </div>
+  </aside>
+  <div id="sharePanelScrim" class="pickerScrim" hidden></div>
+
   <div id="disclaimerScrim" class="pickerScrim" hidden></div>
   <div id="disclaimerModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle" hidden>
     <div class="pickerHeader">
@@ -287,6 +316,17 @@
        for us anymore, so the workflow does its own substitution. In local
        dev (no build step) these placeholders just show up literally. -->
   <footer class="siteFooter">
+    <!-- Same subtle-text-link look as .disclaimerLink/.installHint - a
+         deliberately quiet nudge, on its own line above the badges. -->
+    <button id="shareToggle" class="shareLink" aria-expanded="false" aria-controls="sharePanel">
+      <svg class="shareLinkIcon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"
+           fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <path d="M14 14h3v3h-3zM20 14h1M14 20h1M18 18h3v3h-3z"/>
+      </svg>
+      Share this site with another parent
+    </button>
     <a href="https://github.com/jbtule/fix-lindbergh-school-menus/commit/__BUILD_SHA__" target="_blank" rel="noopener">
       <img src="https://img.shields.io/badge/GitHub-__BUILD_SHA_SHORT__-181717" alt="View source on GitHub" />
     </a>

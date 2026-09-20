@@ -529,6 +529,57 @@ function closeStationInfo() {
   stationInfoAnchor = null;
 }
 
+// ---------- Share ----------
+
+// The canonical URL, not location.href - a visitor could be on a
+// cache-busted/query-stringed variant, and the QR code next to it
+// (icons/qr.svg) encodes exactly this, so the two should agree.
+const SHARE_URL = "https://tools.tuley.name/fix-lindbergh-school-menus/";
+const SHARE_TITLE = "Lindbergh School Menus (Unofficial)";
+const SHARE_TEXT = "An easier way to check Lindbergh school lunch and breakfast menus.";
+
+function openSharePanel() {
+  setPanelOpen("sharePanel", "sharePanelScrim", "shareToggle", true);
+}
+
+function closeSharePanel() {
+  setPanelOpen("sharePanel", "sharePanelScrim", "shareToggle", false);
+}
+
+function wireSharePanel() {
+  const goBtn = document.getElementById("sharePanelGo");
+  document.getElementById("shareUrl").textContent = SHARE_URL;
+  // canShare() as well as share: desktop Chrome/Edge define navigator.share
+  // but can't actually share a bare URL everywhere (Linux, notably).
+  const shareData = { title: SHARE_TITLE, text: SHARE_TEXT, url: SHARE_URL };
+  const canNativeShare =
+    typeof navigator.share === "function" &&
+    (typeof navigator.canShare !== "function" || navigator.canShare(shareData));
+  if (canNativeShare) {
+    goBtn.textContent = "Share\u2026";
+    goBtn.addEventListener("click", async () => {
+      try {
+        await navigator.share(shareData);
+        closeSharePanel();
+      } catch {
+        // AbortError (they dismissed the sheet) or a platform quirk -
+        // either way the panel's still open with the QR/link to fall back on.
+      }
+    });
+    return;
+  }
+  goBtn.textContent = "Copy link";
+  goBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(SHARE_URL);
+      goBtn.textContent = "Copied!";
+    } catch {
+      goBtn.textContent = "Couldn't copy - select the link above";
+    }
+    setTimeout(() => { goBtn.textContent = "Copy link"; }, 2000);
+  });
+}
+
 // ---------- Disclaimer ----------
 
 function openDisclaimer() {
@@ -1949,6 +2000,10 @@ window.addEventListener("beforeprint", () => {
   if (area.dataset.printReady === "1") return;
   area.innerHTML = PRINT_FALLBACK_NOTE;
 });
+document.getElementById("shareToggle").addEventListener("click", openSharePanel);
+document.getElementById("sharePanelClose").addEventListener("click", closeSharePanel);
+document.getElementById("sharePanelScrim").addEventListener("click", closeSharePanel);
+wireSharePanel();
 document.getElementById("disclaimerToggle").addEventListener("click", openDisclaimer);
 document.getElementById("disclaimerClose").addEventListener("click", closeDisclaimer);
 document.getElementById("disclaimerDone").addEventListener("click", closeDisclaimer);
