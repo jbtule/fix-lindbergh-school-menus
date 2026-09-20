@@ -536,7 +536,7 @@ function closeStationInfo() {
 // (icons/qr.svg) encodes exactly this, so the two should agree.
 const SHARE_URL = "https://tools.tuley.name/fix-lindbergh-school-menus/";
 const SHARE_TITLE = "Lindbergh School Menus (Unofficial)";
-const SHARE_TEXT = "An easier way to check Lindbergh school lunch and breakfast menus.";
+const SHARE_TEXT = "An easier way to check Lindbergh school lunch menus.";
 
 function openSharePanel() {
   setPanelOpen("sharePanel", "sharePanelScrim", "shareToggle", true);
