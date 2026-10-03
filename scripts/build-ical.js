@@ -257,8 +257,8 @@ async function buildCalendar(target) {
   const months = await fetchMonthsList(target.apiId);
   const events = [];
   let lastDate = null; // "YYYY-MM-DD" of the last day with an event
-  // The district's own last-edit time across this menu's months (Unix
-  // seconds on each month document) - for the status page.
+  // Latest updatedAt (Unix seconds) across this menu's month documents -
+  // for the status page.
   let updatedAt = null;
   for (const m of months) {
     const docId = m._id && m._id.$id;
@@ -371,7 +371,7 @@ async function main() {
   const targets = buildTargets();
   console.log(`Building ${targets.length} calendars...`);
   let ok = 0;
-  // apiId -> { name, lastDate, updatedAt } - one entry per district menu,
+  // apiId -> { name, lastDate, updatedAt } - one entry per menu (apiId),
   // however many calendars (Idea Center grade combos) are built from it.
   const menus = new Map();
   for (const target of targets) {
@@ -390,12 +390,10 @@ async function main() {
   console.log(`Wrote ${ok}/${targets.length} calendars to ${path.relative(process.cwd(), OUT_DIR.pathname)}`);
 
   // Read by the workflow's README badge job (scripts/update-readme-badges.js)
-  // to show how far ahead the district has published menus. The median
-  // across menus, not the max: the district posts a menu or two a month
-  // early (e.g. ECE lunch), and "menus through November" shouldn't claim
-  // that when nearly every other menu still ends in October. Counted per
-  // district menu (apiId), not per calendar, so Idea Center's many grade-
-  // combo calendars don't outvote everything else.
+  // to show how far ahead menus are posted. The median across menus, not
+  // the max: a menu or two is often posted a month early, and one early
+  // menu shouldn't move the badge. Counted per menu (apiId), not per
+  // calendar, so Idea Center's grade-combo calendars don't outvote the rest.
   const months = [...menus.values()].filter((m) => m.lastDate).map((m) => m.lastDate.slice(0, 7)).sort();
   const latestMonth = months[Math.floor((months.length - 1) / 2)];
   if (latestMonth) {
@@ -403,8 +401,7 @@ async function main() {
     console.log(`Latest menu month: ${latestMonth}`);
   }
 
-  // Per-menu table the README badges link to - which menus the district has
-  // posted how far ahead, and when it last edited each.
+  // Per-menu table the README badges link to.
   await writeFile(new URL("status.html", OUT_DIR), renderStatusPage([...menus.values()], new Date()));
 
   // Published alongside the .ics files above so it inherits the same

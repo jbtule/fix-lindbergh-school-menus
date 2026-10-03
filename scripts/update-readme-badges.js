@@ -2,7 +2,7 @@
 // README.md. Run by the build-ical workflow after a successful build; the
 // workflow commits README.md only if this actually changed it.
 //
-// Two badges: how far ahead the district has published menus (from
+// Two badges: how far ahead menus are posted (from
 // dist/ical/coverage.json, written by build-ical.js), and the month the
 // build last ran. The second one changes every month even when no new menus
 // are posted (summer), which guarantees a commit at least monthly - GitHub
