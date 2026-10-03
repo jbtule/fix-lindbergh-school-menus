@@ -21,6 +21,7 @@ import {
 } from "../src/config.js";
 import { fetchMonthsList, fetchMenuItems } from "../src/menu-api.js";
 import { icsSlugFor } from "../src/ical-naming.js";
+import { renderStatusPage } from "./status-page.js";
 
 const OUT_DIR = new URL("../dist/ical/", import.meta.url);
 
@@ -54,6 +55,7 @@ function buildTargets() {
       targets.push({
         slug: icsSlugFor({ name: info.name, school: info.school, apiId, hasFullWeek: true, specificDays: new Set() }),
         title: `${info.school} - ${info.name}`,
+        menuName: `${info.school} - ${info.name}`, // status page row (one per apiId)
         emoji: mealEmoji(info.name),
         // See SNACK_MEAL_NAMES in config.js - Idea Center never has a
         // Flyers Club/Snack menu, so this only ever applies here, not in
@@ -84,6 +86,7 @@ function buildTargets() {
           specificDays: new Set([info.dayFilter]),
         }),
         title: `${info.baseName} - ${grade}`,
+        menuName: info.baseName,
         emoji: ideaCenterEmoji,
         apiId,
         weekdays: [info.dayFilter],
@@ -95,6 +98,7 @@ function buildTargets() {
       targets.push({
         slug: icsSlugFor({ name: fullWeek.info.baseName, apiId, hasFullWeek: true, specificDays: new Set() }),
         title: fullWeek.info.name,
+        menuName: fullWeek.info.baseName,
         emoji: ideaCenterEmoji,
         apiId,
         weekdays: null,
@@ -115,6 +119,7 @@ function buildTargets() {
         // buildCalendar) - a given day belongs to just one grade, even
         // though the calendar as a whole covers several.
         baseName,
+        menuName: baseName,
         emoji: ideaCenterEmoji,
         apiId,
         weekdays: combo,
@@ -251,12 +256,17 @@ function withPublishedTTL(ics) {
 async function buildCalendar(target) {
   const months = await fetchMonthsList(target.apiId);
   const events = [];
-  let latestMonth = null; // "YYYY-MM" of the last month with any events
+  let lastDate = null; // "YYYY-MM-DD" of the last day with an event
+  // The district's own last-edit time across this menu's months (Unix
+  // seconds on each month document) - for the status page.
+  let updatedAt = null;
   for (const m of months) {
     const docId = m._id && m._id.$id;
     if (!docId) continue;
     const year = Number(m.year);
     const month = Number(m.month); // 0-based, matches JS Date
+    const mUpdated = Number(m.updatedAt);
+    if (Number.isFinite(mUpdated) && (!updatedAt || mUpdated > updatedAt)) updatedAt = mUpdated;
     const items = await fetchMenuItems(docId);
     const byDay = new Map();
     for (const it of items) {
@@ -289,13 +299,13 @@ async function buildCalendar(target) {
         description: `${header}\n\n${description}`,
         uid: `${target.slug}-${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}@fix-lindbergh-school-menus`,
       });
-      const ym = `${year}-${String(month + 1).padStart(2, "0")}`;
-      if (!latestMonth || ym > latestMonth) latestMonth = ym;
+      const ymd = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      if (!lastDate || ymd > lastDate) lastDate = ymd;
     }
   }
   const { error, value } = createEvents(events, { calName: target.title });
   if (error) throw error;
-  return { ics: withPublishedTTL(value), latestMonth };
+  return { ics: withPublishedTTL(value), lastDate, updatedAt };
 }
 
 // Parses one of the district's event calendars (see SCHOOL_CALENDAR_ICS_URL/
@@ -361,13 +371,17 @@ async function main() {
   const targets = buildTargets();
   console.log(`Building ${targets.length} calendars...`);
   let ok = 0;
-  const latestByMenu = new Map(); // apiId -> latest "YYYY-MM" with events
+  // apiId -> { name, lastDate, updatedAt } - one entry per district menu,
+  // however many calendars (Idea Center grade combos) are built from it.
+  const menus = new Map();
   for (const target of targets) {
     try {
       const built = await buildCalendar(target);
       await writeFile(new URL(`${target.slug}.ics`, OUT_DIR), built.ics);
-      const prev = latestByMenu.get(target.apiId);
-      if (built.latestMonth && (!prev || built.latestMonth > prev)) latestByMenu.set(target.apiId, built.latestMonth);
+      const menu = menus.get(target.apiId) ?? { name: target.menuName, lastDate: null, updatedAt: null };
+      if (built.lastDate && (!menu.lastDate || built.lastDate > menu.lastDate)) menu.lastDate = built.lastDate;
+      if (built.updatedAt && (!menu.updatedAt || built.updatedAt > menu.updatedAt)) menu.updatedAt = built.updatedAt;
+      menus.set(target.apiId, menu);
       ok++;
     } catch (err) {
       console.error(`Failed to build ${target.slug}: ${err.message}`);
@@ -382,12 +396,16 @@ async function main() {
   // that when nearly every other menu still ends in October. Counted per
   // district menu (apiId), not per calendar, so Idea Center's many grade-
   // combo calendars don't outvote everything else.
-  const months = [...latestByMenu.values()].sort();
+  const months = [...menus.values()].filter((m) => m.lastDate).map((m) => m.lastDate.slice(0, 7)).sort();
   const latestMonth = months[Math.floor((months.length - 1) / 2)];
   if (latestMonth) {
     await writeFile(new URL("coverage.json", OUT_DIR), JSON.stringify({ latestMonth }));
     console.log(`Latest menu month: ${latestMonth}`);
   }
+
+  // Per-menu table the README badges link to - which menus the district has
+  // posted how far ahead, and when it last edited each.
+  await writeFile(new URL("status.html", OUT_DIR), renderStatusPage([...menus.values()], new Date()));
 
   // Published alongside the .ics files above so it inherits the same
   // daily refresh and open CORS - app.js can't fetch SCHOOL_CALENDAR_ICS_URL

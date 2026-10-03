@@ -11,8 +11,11 @@
 //
 // Usage: node scripts/update-readme-badges.js [coverage.json]
 import { readFile, writeFile } from "node:fs/promises";
+import { ICAL_BASE_URL } from "../src/config.js";
 
 const README = new URL("../README.md", import.meta.url);
+// Per-menu table published next to the .ics feeds (scripts/status-page.js).
+const STATUS_URL = `${ICAL_BASE_URL}/status`;
 const START = "<!-- menu-badges:start -->";
 const END = "<!-- menu-badges:end -->";
 
@@ -28,7 +31,7 @@ function monthName(ym) {
 }
 const badgeText = (s) => encodeURIComponent(s.replaceAll("-", "--").replaceAll(" ", "_"));
 const badge = (label, message, color) =>
-  `![${label}: ${message}](https://img.shields.io/badge/${badgeText(label)}-${badgeText(message)}-${color})`;
+  `[![${label}: ${message}](https://img.shields.io/badge/${badgeText(label)}-${badgeText(message)}-${color})](${STATUS_URL})`;
 
 const checked = new Date().toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "America/Chicago" });
 const block = [
