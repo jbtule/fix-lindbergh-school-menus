@@ -1,0 +1,34 @@
+name: Dependabot auto-merge
+
+# Turns on GitHub auto-merge for Dependabot's patch/minor PRs, so they merge
+# once the required checks (the main ruleset requires zizmor) pass. Major
+# bumps are left open for manual review. Needs "Allow auto-merge" enabled
+# in Settings -> General.
+#
+# Note: merges made with GITHUB_TOKEN don't trigger other workflows, so the
+# Pages deploy won't run after one - fine, since these PRs only touch
+# workflow files, not the site.
+on: pull_request
+
+permissions: {}
+
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    # The PR's author, not github.actor (which can be spoofed by anyone who
+    # triggers a re-run on a Dependabot PR).
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+
+      # For a grouped PR, update-type is the largest bump in the group, so
+      # one major bump keeps the whole group open for review.
+      - if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
