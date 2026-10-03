@@ -361,12 +361,13 @@ async function main() {
   const targets = buildTargets();
   console.log(`Building ${targets.length} calendars...`);
   let ok = 0;
-  let latestMonth = null;
+  const latestByMenu = new Map(); // apiId -> latest "YYYY-MM" with events
   for (const target of targets) {
     try {
       const built = await buildCalendar(target);
       await writeFile(new URL(`${target.slug}.ics`, OUT_DIR), built.ics);
-      if (built.latestMonth && (!latestMonth || built.latestMonth > latestMonth)) latestMonth = built.latestMonth;
+      const prev = latestByMenu.get(target.apiId);
+      if (built.latestMonth && (!prev || built.latestMonth > prev)) latestByMenu.set(target.apiId, built.latestMonth);
       ok++;
     } catch (err) {
       console.error(`Failed to build ${target.slug}: ${err.message}`);
@@ -375,7 +376,14 @@ async function main() {
   console.log(`Wrote ${ok}/${targets.length} calendars to ${path.relative(process.cwd(), OUT_DIR.pathname)}`);
 
   // Read by the workflow's README badge job (scripts/update-readme-badges.js)
-  // to show how far ahead the district has published menus.
+  // to show how far ahead the district has published menus. The median
+  // across menus, not the max: the district posts a menu or two a month
+  // early (e.g. ECE lunch), and "menus through November" shouldn't claim
+  // that when nearly every other menu still ends in October. Counted per
+  // district menu (apiId), not per calendar, so Idea Center's many grade-
+  // combo calendars don't outvote everything else.
+  const months = [...latestByMenu.values()].sort();
+  const latestMonth = months[Math.floor((months.length - 1) / 2)];
   if (latestMonth) {
     await writeFile(new URL("coverage.json", OUT_DIR), JSON.stringify({ latestMonth }));
     console.log(`Latest menu month: ${latestMonth}`);

@@ -4,7 +4,7 @@
 · built with [Claude Code](https://claude.com/claude-code)
 
 <!-- menu-badges:start -->
-![menus through: November 2026](https://img.shields.io/badge/menus_through-November_2026-2e7d32)
+![menus through: October 2026](https://img.shields.io/badge/menus_through-October_2026-2e7d32)
 ![checked: October 2026](https://img.shields.io/badge/checked-October_2026-lightgrey)
 <!-- menu-badges:end -->
 
