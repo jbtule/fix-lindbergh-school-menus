@@ -1,0 +1,13 @@
+# Keeps the SHA-pinned actions in .github/workflows/ up to date (zizmor
+# requires hash pins, so tags no longer float on their own).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns: ["*"]
