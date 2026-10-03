@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      latest-month: ${{ steps.coverage.outputs.latest-month }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,6 +33,9 @@ jobs:
 
       - run: npm run build-ical
 
+      - id: coverage
+        run: echo "latest-month=$(jq -r .latestMonth dist/ical/coverage.json)" >> "$GITHUB_OUTPUT"
+
       # TODO(jay): create the "lindbergh-school-menus-unofficial" Cloudflare
       # Pages project, then add the two repo secrets (Settings -> Secrets
       # and variables -> Actions):
@@ -41,3 +46,46 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist/ical --project-name=lindbergh-school-menus-unofficial
+
+  # Commits refreshed README badges (scripts/update-readme-badges.js) when
+  # they change - at least monthly, which also keeps this scheduled workflow
+  # from being auto-disabled after 60 days without repository activity.
+  # Separate job so the deploy key is never present while npm ci runs
+  # third-party install scripts.
+  #
+  # Pushes with a deploy key rather than GITHUB_TOKEN because the main
+  # ruleset requires the zizmor check; the deploy key is on the ruleset's
+  # bypass list. Setup (one-time):
+  #   ssh-keygen -t ed25519 -N "" -C readme-badge-bot -f readme-badge-bot
+  #   Settings -> Deploy keys -> add readme-badge-bot.pub, allow write access
+  #   Settings -> Secrets and variables -> Actions -> README_DEPLOY_KEY =
+  #     contents of readme-badge-bot (the private key); then delete both files
+  #   Settings -> Rules -> the main ruleset -> Bypass list -> Deploy keys
+  update-readme-badges:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Credentials must persist so the push below can use the key; this job
+      # uploads no artifacts.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ssh-key: ${{ secrets.README_DEPLOY_KEY }} # zizmor: ignore[artipacked]
+
+      - name: Update badges
+        env:
+          LATEST_MONTH: ${{ needs.build-and-deploy.outputs.latest-month }}
+        run: |
+          printf '{"latestMonth":"%s"}' "$LATEST_MONTH" > "$RUNNER_TEMP/coverage.json"
+          node scripts/update-readme-badges.js "$RUNNER_TEMP/coverage.json"
+
+      # [skip ci]: a README-only change doesn't need the Pages deploy or
+      # zizmor runs that a push to main would otherwise trigger.
+      - name: Commit if changed
+        run: |
+          git diff --quiet README.md && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update README menu badges [skip ci]" README.md
+          git push

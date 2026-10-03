@@ -3,6 +3,9 @@
 **[tools.tuley.name/fix-lindbergh-school-menus](https://tools.tuley.name/fix-lindbergh-school-menus/)**
 · built with [Claude Code](https://claude.com/claude-code)
 
+<!-- menu-badges:start -->
+<!-- menu-badges:end -->
+
 A static, mobile-friendly menu viewer for Lindbergh School District (Missouri),
 built because the district's official menu site is slow and hard to use day
 to day. **This is not built, run, or endorsed by Lindbergh School District** -

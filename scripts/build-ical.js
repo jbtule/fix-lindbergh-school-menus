@@ -251,6 +251,7 @@ function withPublishedTTL(ics) {
 async function buildCalendar(target) {
   const months = await fetchMonthsList(target.apiId);
   const events = [];
+  let latestMonth = null; // "YYYY-MM" of the last month with any events
   for (const m of months) {
     const docId = m._id && m._id.$id;
     if (!docId) continue;
@@ -288,11 +289,13 @@ async function buildCalendar(target) {
         description: `${header}\n\n${description}`,
         uid: `${target.slug}-${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}@fix-lindbergh-school-menus`,
       });
+      const ym = `${year}-${String(month + 1).padStart(2, "0")}`;
+      if (!latestMonth || ym > latestMonth) latestMonth = ym;
     }
   }
   const { error, value } = createEvents(events, { calName: target.title });
   if (error) throw error;
-  return withPublishedTTL(value);
+  return { ics: withPublishedTTL(value), latestMonth };
 }
 
 // Parses one of the district's event calendars (see SCHOOL_CALENDAR_ICS_URL/
@@ -358,16 +361,25 @@ async function main() {
   const targets = buildTargets();
   console.log(`Building ${targets.length} calendars...`);
   let ok = 0;
+  let latestMonth = null;
   for (const target of targets) {
     try {
-      const ics = await buildCalendar(target);
-      await writeFile(new URL(`${target.slug}.ics`, OUT_DIR), ics);
+      const built = await buildCalendar(target);
+      await writeFile(new URL(`${target.slug}.ics`, OUT_DIR), built.ics);
+      if (built.latestMonth && (!latestMonth || built.latestMonth > latestMonth)) latestMonth = built.latestMonth;
       ok++;
     } catch (err) {
       console.error(`Failed to build ${target.slug}: ${err.message}`);
     }
   }
   console.log(`Wrote ${ok}/${targets.length} calendars to ${path.relative(process.cwd(), OUT_DIR.pathname)}`);
+
+  // Read by the workflow's README badge job (scripts/update-readme-badges.js)
+  // to show how far ahead the district has published menus.
+  if (latestMonth) {
+    await writeFile(new URL("coverage.json", OUT_DIR), JSON.stringify({ latestMonth }));
+    console.log(`Latest menu month: ${latestMonth}`);
+  }
 
   // Published alongside the .ics files above so it inherits the same
   // daily refresh and open CORS - app.js can't fetch SCHOOL_CALENDAR_ICS_URL
