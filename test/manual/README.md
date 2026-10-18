@@ -39,6 +39,10 @@ Each script hardcodes `http://localhost:8934` - start the dev server first
   prominent "Snack" label while milk/condiments/juice stay ordinary sides,
   in both day view and the built `.ics` description (`npm run build-ical`
   must have been run first for the ics half).
+- **`full-offline.mjs`** - one online visit, then the browser goes fully
+  offline (local server included) and reloads: confirms the service
+  worker (`sw.js`) serves the app and the cached menu still renders.
+  `offline-cache.mjs` below only blocks the vendor API.
 - **`offline-cache.mjs`** - warms the localStorage cache for a menu, then
   blocks every vendor domain via Playwright request routing (simulating
   offline) and confirms the page still renders the last-fetched menu

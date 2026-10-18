@@ -2151,8 +2151,18 @@ setInterval(() => {
   renderDayLabel();
 }, 60000);
 
-// Reloads the page when a newer version has been deployed. No service
-// worker needed: deploy-pages.yml writes a fresh APP_VERSION to
+// Offline support for the app shell - see sw.js. Network-first, so it
+// doesn't change anything below while online.
+// The try is for sandboxed contexts (e.g. some embedded previews), where
+// even reading navigator.serviceWorker throws.
+try {
+  navigator.serviceWorker?.register("sw.js").catch(() => {});
+} catch {
+  /* no offline support there - everything else works the same */
+}
+
+// Reloads the page when a newer version has been deployed. The service
+// worker isn't involved: deploy-pages.yml writes a fresh APP_VERSION to
 // version.js on every deploy, so re-fetching index.html fresh (bypassing
 // the browser's own cache - see the disclaimer for why that cache
 // exists) and reading back version.js's current ?v= hash is enough to

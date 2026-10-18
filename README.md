@@ -77,7 +77,10 @@ could stop working at any time.
   A menu that's been viewed before paints instantly from that cache while
   the live data loads quietly in the background (repainting only if
   something changed); if the network fails entirely, the last-fetched
-  version keeps showing instead of an error (see `src/menu-api.js`)
+  version keeps showing instead of an error (see `src/menu-api.js`). A
+  service worker (`sw.js`) saves the app itself too, so it still opens
+  with no connection at all; it's network-first, so online behavior is
+  unchanged
 - Optional Google Translate widget, matching the language list seen on
   the district's own site - a one-line flip (`TRANSLATE_WIDGET_ENABLED`
   in `src/app.js`) to remove entirely. Printing gives an active translation a
