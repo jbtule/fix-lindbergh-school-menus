@@ -81,9 +81,17 @@ jobs:
 
           OPTIONAL_FILES="src/station-boundaries.js"
 
-          bust_in src/app.js config.js "$(hash_of src/config.js)"
+          # Innermost first: config.js is imported by menu-logic.js and
+          # ical-naming.js as well as app.js, and every importer must use
+          # the same ?v= or the browser loads it twice (one copy possibly
+          # stale). Then their own hashes, which now cover that rewrite.
+          config_v="$(hash_of src/config.js)"
+          bust_in src/menu-logic.js config.js "$config_v"
+          bust_in src/ical-naming.js config.js "$config_v"
+          bust_in src/app.js config.js "$config_v"
           bust_in src/app.js menu-api.js "$(hash_of src/menu-api.js)"
           bust_in src/app.js ical-naming.js "$(hash_of src/ical-naming.js)"
+          bust_in src/app.js menu-logic.js "$(hash_of src/menu-logic.js)"
 
           bust src/app.js "$(hash_of src/app.js)"
           bust style.css "$(hash_of style.css)"
@@ -91,7 +99,7 @@ jobs:
             [ -f "$f" ] && bust "$f" "$(hash_of "$f")"
           done
 
-          version_inputs="src/app.js src/config.js style.css src/menu-api.js src/ical-naming.js"
+          version_inputs="src/app.js src/config.js style.css src/menu-api.js src/ical-naming.js src/menu-logic.js"
           for f in $OPTIONAL_FILES; do
             [ -f "$f" ] && version_inputs="$version_inputs $f"
           done
