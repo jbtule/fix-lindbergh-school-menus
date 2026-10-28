@@ -381,6 +381,138 @@ function closePrintPanel() {
   printPanelGroup = null;
 }
 
+// ---------- Copy entrees (as an image) ----------
+
+// The day or week currently on screen, entrees only, drawn to a canvas and
+// put on the clipboard as a PNG - for pasting into Canva and the like,
+// where a pasted image lands as-is and rich text doesn't reliably. Uses
+// computeDayItemsForPrint() (same data as Print), so Snack menus' snack
+// counts as the entree here too.
+const COPY_WIDTH = 900; // CSS px; drawn at 2x for a crisp paste
+const COPY_PAD = 40;
+const COPY_FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+
+// Splits text into lines no wider than maxWidth with the context's current font.
+function wrapText(ctx, text, maxWidth) {
+  const lines = [];
+  let line = "";
+  for (const word of text.split(/\s+/)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(next).width > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+// days: [{ label, entrees: [name], note }] -> Promise<Blob> (image/png).
+// A null label skips that day's heading (day view - the subtitle already
+// has the date). Laid out twice: once to measure, once to draw; the image
+// is trimmed to its widest line so it pastes without empty space.
+function drawEntreesPng(title, subtitle, days) {
+  const scale = 2;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const inner = COPY_WIDTH - COPY_PAD * 2;
+
+  let widest = 0;
+  const layout = (draw) => {
+    let y = COPY_PAD;
+    const text = (str, font, color, size, gapAfter, indent = 0) => {
+      ctx.font = font;
+      for (const line of wrapText(ctx, str, inner - indent)) {
+        widest = Math.max(widest, indent + ctx.measureText(line).width);
+        if (draw) {
+          ctx.fillStyle = color;
+          ctx.fillText(line, COPY_PAD + indent, y + size);
+        }
+        y += size * 1.3;
+      }
+      y += gapAfter;
+    };
+    text(title, `700 30px ${COPY_FONT}`, "#1a1a1a", 30, 2);
+    text(subtitle, `400 20px ${COPY_FONT}`, "#666", 20, 18);
+    for (const day of days) {
+      if (day.label) text(day.label, `700 22px ${COPY_FONT}`, "#2f6f4f", 22, 6);
+      if (day.note) text(day.note, `italic 400 19px ${COPY_FONT}`, "#777", 19, 0, 20);
+      for (const name of day.entrees) text(`• ${name}`, `400 20px ${COPY_FONT}`, "#1a1a1a", 20, 2, 20);
+      y += 16;
+    }
+    return y - 16 + COPY_PAD;
+  };
+
+  const height = layout(false);
+  const width = Math.min(COPY_WIDTH, Math.ceil(widest) + COPY_PAD * 2);
+  canvas.width = width * scale;
+  canvas.height = Math.ceil(height * scale);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, width, height);
+  layout(true);
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Couldn't draw the image"))), "image/png"),
+  );
+}
+
+async function entreesPngFor(group) {
+  const week = state.viewMode === "week";
+  const dates = week ? weekDatesFor(state.currentDate) : [state.currentDate];
+  const results = await Promise.all(dates.map((d) => computeDayItemsForPrint(group, d)));
+  // A single-grade Idea Center menu is only on one weekday - its other
+  // days' "Not scheduled" notes are clutter in a graphic, so they're left out.
+  const days = dates.flatMap((d, i) => {
+    const r = results[i];
+    if (week && r.kind === "notScheduled") return [];
+    const grade = r.grade ? ` (${r.grade})` : "";
+    const label = week
+      ? `${WEEKDAY_NAMES[d.getDay()]}, ${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getDate()}${grade}`
+      : r.grade || null;
+    if (r.note) return [{ label, entrees: [], note: r.note }];
+    const entrees = sortItemsForDay(r.byCategory.get("Entrees") || []).map((it) => it.product.name);
+    return [{ label, entrees, note: entrees.length ? null : "No entrées listed." }];
+  });
+  const subtitle = week
+    ? `Week of ${MONTH_NAMES[dates[0].getMonth()]} ${dates[0].getDate()}, ${dates[0].getFullYear()}`
+    : formatDate(dates[0]);
+  return drawEntreesPng(`${group.school} - ${group.name}`, subtitle, days);
+}
+
+// The clipboard write has to start synchronously inside the click (Safari
+// drops it otherwise), so the image goes in as a promise that resolves
+// once the data is fetched and drawn. Where image clipboard writes aren't
+// supported, the PNG downloads instead.
+async function copyEntrees(group, button) {
+  const original = button.innerHTML;
+  const done = (msg) => {
+    button.textContent = msg;
+    setTimeout(() => {
+      button.innerHTML = original;
+      closeActionMenu();
+    }, 1500);
+  };
+  const png = entreesPngFor(group);
+  try {
+    if (!window.ClipboardItem || !navigator.clipboard?.write) throw new Error("no image clipboard");
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
+    done("✓ Copied - paste into Canva");
+  } catch (err) {
+    try {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(await png);
+      a.download = `${icsSlugFor(group)}-entrees.png`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      done("Couldn't copy - downloaded instead");
+    } catch {
+      done("Couldn't copy entrées");
+    }
+  }
+}
+
 // ---------- Calendar subscribe panel ----------
 
 let subscribeUrl = null; // the plain https .ics URL for whatever group is open
@@ -907,7 +1039,7 @@ async function renderSections() {
     section.innerHTML = `
       <h2>
         ${group.school} - ${group.name}
-        <button class="sectionActionsBtn" aria-label="Menu actions" title="Print, subscribe...">⋯ Actions</button>
+        <button class="sectionActionsBtn" aria-label="Menu actions" title="Print, subscribe, copy...">⋯ Actions</button>
       </h2>
       <div class="sectionBody"><p class="loading">Loading...</p></div>
     `;
@@ -1455,7 +1587,7 @@ function printItemLine(it) {
 // not meaningful in a table cell.
 async function computeDayItemsForPrint(info, date) {
   const result = await fetchDayItems(info, date);
-  if (result.kind) return { note: result.message };
+  if (result.kind) return { note: result.message, kind: result.kind };
   // Flyers Club/Snack (see SNACK_MEAL_NAMES): remap every item's row to
   // "Entrees" so it lands in the print table's always-first row rather than
   // whatever side category the district actually filed it under - matches
@@ -1919,6 +2051,10 @@ document.getElementById("actionPopoverSubscribe").addEventListener("click", () =
   const group = actionMenuGroup;
   closeActionMenu();
   if (group) openSubscribePanel(group);
+});
+document.getElementById("actionPopoverCopy").addEventListener("click", (e) => {
+  e.stopPropagation(); // keep the popover open to show the result
+  if (actionMenuGroup) copyEntrees(actionMenuGroup, e.currentTarget);
 });
 // Closing on outside click/scroll - opening itself is handled per-icon in
 // renderSections(), since each icon needs to know which menu it's for.
