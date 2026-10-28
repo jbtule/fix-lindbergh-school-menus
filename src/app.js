@@ -384,7 +384,7 @@ function closePrintPanel() {
 // ---------- Copy entrees (as an image) ----------
 
 // The day or week currently on screen, entrees only, drawn to a canvas and
-// put on the clipboard as a PNG - for pasting into Canva and the like,
+// put on the clipboard as a PNG - for pasting into a document or design,
 // where a pasted image lands as-is and rich text doesn't reliably. Uses
 // computeDayItemsForPrint() (same data as Print), so Snack menus' snack
 // counts as the entree here too.
@@ -498,7 +498,7 @@ async function copyEntrees(group, button) {
   try {
     if (!window.ClipboardItem || !navigator.clipboard?.write) throw new Error("no image clipboard");
     await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
-    done("✓ Copied - paste into Canva");
+    done("✓ Copied - paste into a document");
   } catch (err) {
     try {
       const a = document.createElement("a");
