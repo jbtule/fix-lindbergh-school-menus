@@ -383,14 +383,28 @@ function closePrintPanel() {
 
 // ---------- Copy entrees (as an image) ----------
 
-// The day or week currently on screen, entrees only, drawn to a canvas and
-// put on the clipboard as a PNG - for pasting into a document or design,
-// where a pasted image lands as-is and rich text doesn't reliably. Uses
+// The day or week currently on screen, entrees only, drawn to a canvas the
+// way the page shows them - one card per day, side by side, each with its
+// Entree box, "OR" between choices, the vegetarian/vegan badge after the
+// name and an Allergens pill under it - and put on the clipboard as a PNG,
+// which pastes into documents and design tools as-is. Uses
 // computeDayItemsForPrint() (same data as Print), so Snack menus' snack
-// counts as the entree here too.
-const COPY_WIDTH = 900; // CSS px; drawn at 2x for a crisp paste
-const COPY_PAD = 40;
+// counts as the entree here too. Colors match style.css's light theme.
+const COPY_COLORS = {
+  fg: "#1a1a1a",
+  muted: "#6b6b6b",
+  border: "#dcdcdc",
+  card: "#f7f7f5",
+  accent: "#2f6f4f",
+  warnBorder: "#c99a00",
+  warnBg: "#fffbeb",
+  warnLabel: "#8a6d00",
+};
 const COPY_FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const COPY_PAD = 24; // around the whole image
+const COPY_GAP = 14; // between day cards
+const CARD_PAD = 14;
+const BOX_PAD = 12; // inside the Entree box
 
 // Splits text into lines no wider than maxWidth with the context's current font.
 function wrapText(ctx, text, maxWidth) {
@@ -409,50 +423,142 @@ function wrapText(ctx, text, maxWidth) {
   return lines;
 }
 
-// days: [{ label, entrees: [name], note }] -> Promise<Blob> (image/png).
-// A null label skips that day's heading (day view - the subtitle already
-// has the date). Laid out twice: once to measure, once to draw; the image
-// is trimmed to its widest line so it pastes without empty space.
-function drawEntreesPng(title, subtitle, days) {
+function roundRect(ctx, x, y, w, h, r, fill, stroke, lineWidth = 1.5) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  if (fill) {
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+  }
+}
+
+// One entree as shown on screen: name, then positive badge inline (🥗/🌿),
+// then allergen icons (deduped - dairy and milk share 🥛).
+function copyEntreeFor(it) {
+  const p = it.product;
+  const positive = isAllergenFlagged(p.allergen_vegetarian)
+    ? (isVegan(p) ? VEGAN_BADGE : ALLERGEN_DEFS.find((d) => d.positive)).icon
+    : "";
+  const icons = [
+    ...new Set(ALLERGEN_DEFS.filter((d) => !d.positive && isAllergenFlagged(p[d.field])).map((d) => d.icon)),
+  ];
+  return { name: positive ? `${p.name} ${positive}` : p.name, icons };
+}
+
+// days: [{ weekday, date, grade, label ("Entree"/"Snack"), entrees: [{ name,
+// icons }], note }] -> Promise<Blob> (image/png). Laid out twice: once to
+// measure each card's height, once to draw at the tallest.
+function drawEntreesPng(title, subtitle, days, cardWidth) {
   const scale = 2;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
-  const inner = COPY_WIDTH - COPY_PAD * 2;
+  const width = COPY_PAD * 2 + days.length * cardWidth + (days.length - 1) * COPY_GAP;
+  const boxInner = cardWidth - CARD_PAD * 2 - BOX_PAD * 2;
 
-  let widest = 0;
-  const layout = (draw) => {
-    let y = COPY_PAD;
-    const text = (str, font, color, size, gapAfter, indent = 0) => {
+  // Draws (or just measures, when draw is false) one day card at x/top,
+  // returning its height.
+  const card = (day, x, top, draw, height) => {
+    if (draw) roundRect(ctx, x, top, cardWidth, height, 10, COPY_COLORS.card, COPY_COLORS.border, 1);
+    const left = x + CARD_PAD;
+    let y = top + CARD_PAD;
+    const put = (str, font, color, size, dx = 0) => {
       ctx.font = font;
-      for (const line of wrapText(ctx, str, inner - indent)) {
-        widest = Math.max(widest, indent + ctx.measureText(line).width);
-        if (draw) {
-          ctx.fillStyle = color;
-          ctx.fillText(line, COPY_PAD + indent, y + size);
-        }
-        y += size * 1.3;
+      if (draw) {
+        ctx.fillStyle = color;
+        ctx.fillText(str, left + dx, y + size);
       }
-      y += gapAfter;
+      y += size * 1.3;
     };
-    text(title, `700 30px ${COPY_FONT}`, "#1a1a1a", 30, 2);
-    text(subtitle, `400 20px ${COPY_FONT}`, "#666", 20, 18);
-    for (const day of days) {
-      if (day.label) text(day.label, `700 22px ${COPY_FONT}`, "#2f6f4f", 22, 6);
-      if (day.note) text(day.note, `italic 400 19px ${COPY_FONT}`, "#777", 19, 0, 20);
-      for (const name of day.entrees) text(`• ${name}`, `400 20px ${COPY_FONT}`, "#1a1a1a", 20, 2, 20);
-      y += 16;
+    put(day.weekday.toUpperCase(), `600 11px ${COPY_FONT}`, COPY_COLORS.muted, 11);
+    put(day.date, `700 17px ${COPY_FONT}`, COPY_COLORS.fg, 17);
+    if (day.grade) put(day.grade, `600 12px ${COPY_FONT}`, COPY_COLORS.accent, 12);
+    y += 6;
+    if (draw) {
+      ctx.fillStyle = COPY_COLORS.border;
+      ctx.fillRect(left, y, cardWidth - CARD_PAD * 2, 1);
     }
-    return y - 16 + COPY_PAD;
+    y += 10;
+
+    if (day.note) {
+      ctx.font = `italic 400 13px ${COPY_FONT}`;
+      for (const line of wrapText(ctx, day.note, cardWidth - CARD_PAD * 2)) put(line, ctx.font, COPY_COLORS.muted, 13);
+      return y - top + CARD_PAD;
+    }
+
+    const boxTop = y;
+    y += BOX_PAD;
+    const inLeft = BOX_PAD;
+    put(day.label.toUpperCase(), `700 11px ${COPY_FONT}`, COPY_COLORS.accent, 11, inLeft);
+    y += 4;
+    day.entrees.forEach((e, i) => {
+      if (i > 0) {
+        y += 2;
+        put("— OR —", `600 10px ${COPY_FONT}`, COPY_COLORS.muted, 10, inLeft);
+        y += 2;
+      }
+      ctx.font = `700 15px ${COPY_FONT}`;
+      for (const line of wrapText(ctx, e.name, boxInner)) put(line, ctx.font, COPY_COLORS.fg, 15, inLeft);
+      if (e.icons.length) {
+        y += 3;
+        ctx.font = `700 9px ${COPY_FONT}`;
+        const labelW = ctx.measureText("ALLERGENS").width;
+        const iconsText = e.icons.join(" ");
+        ctx.font = `13px ${COPY_FONT}`;
+        const pillW = Math.min(boxInner, 8 + labelW + 6 + ctx.measureText(iconsText).width + 8);
+        const pillH = 20;
+        if (draw) {
+          roundRect(ctx, left + inLeft, y, pillW, pillH, 6, COPY_COLORS.warnBg, COPY_COLORS.warnBorder);
+          ctx.font = `700 9px ${COPY_FONT}`;
+          ctx.fillStyle = COPY_COLORS.warnLabel;
+          ctx.fillText("ALLERGENS", left + inLeft + 8, y + 13.5);
+          ctx.font = `13px ${COPY_FONT}`;
+          ctx.fillText(iconsText, left + inLeft + 8 + labelW + 6, y + 14.5);
+        }
+        y += pillH + 2;
+      }
+    });
+    y += BOX_PAD;
+    if (draw) roundRect(ctx, left, boxTop, cardWidth - CARD_PAD * 2, y - boxTop, 8, null, COPY_COLORS.accent);
+    return y - top + CARD_PAD;
   };
 
-  const height = layout(false);
-  const width = Math.min(COPY_WIDTH, Math.ceil(widest) + COPY_PAD * 2);
+  const header = (draw) => {
+    let y = COPY_PAD;
+    ctx.font = `700 22px ${COPY_FONT}`;
+    if (draw) {
+      ctx.fillStyle = COPY_COLORS.fg;
+      ctx.fillText(title, COPY_PAD, y + 22);
+    }
+    y += 22 * 1.3;
+    ctx.font = `400 14px ${COPY_FONT}`;
+    if (draw) {
+      ctx.fillStyle = COPY_COLORS.muted;
+      ctx.fillText(subtitle, COPY_PAD, y + 14);
+    }
+    return y + 14 * 1.3 + 14;
+  };
+
+  const cardsTop = header(false);
+  const cardHeight = Math.max(...days.map((d) => card(d, 0, 0, false)));
+  const height = cardsTop + cardHeight + COPY_PAD;
+
   canvas.width = width * scale;
   canvas.height = Math.ceil(height * scale);
   ctx.scale(scale, scale);
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, width, height);
-  layout(true);
+  header(true);
+  days.forEach((d, i) => card(d, COPY_PAD + i * (cardWidth + COPY_GAP), cardsTop, true, cardHeight));
   return new Promise((resolve, reject) =>
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Couldn't draw the image"))), "image/png"),
   );
@@ -462,23 +568,27 @@ async function entreesPngFor(group) {
   const week = state.viewMode === "week";
   const dates = week ? weekDatesFor(state.currentDate) : [state.currentDate];
   const results = await Promise.all(dates.map((d) => computeDayItemsForPrint(group, d)));
+  const label = SNACK_MEAL_NAMES.has(group.name) ? "Snack" : "Entree";
   // A single-grade Idea Center menu is only on one weekday - its other
   // days' "Not scheduled" notes are clutter in a graphic, so they're left out.
+  const skipUnscheduled = week && results.some((r) => r.kind !== "notScheduled");
   const days = dates.flatMap((d, i) => {
     const r = results[i];
-    if (week && r.kind === "notScheduled") return [];
-    const grade = r.grade ? ` (${r.grade})` : "";
-    const label = week
-      ? `${WEEKDAY_NAMES[d.getDay()]}, ${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getDate()}${grade}`
-      : r.grade || null;
-    if (r.note) return [{ label, entrees: [], note: r.note }];
-    const entrees = sortItemsForDay(r.byCategory.get("Entrees") || []).map((it) => it.product.name);
-    return [{ label, entrees, note: entrees.length ? null : "No entrées listed." }];
+    if (skipUnscheduled && r.kind === "notScheduled") return [];
+    const day = {
+      weekday: WEEKDAY_NAMES[d.getDay()].slice(0, 3),
+      date: `${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getDate()}`,
+      grade: r.grade || null,
+      label,
+    };
+    if (r.note) return [{ ...day, entrees: [], note: r.note }];
+    const entrees = sortItemsForDay(r.byCategory.get("Entrees") || []).map(copyEntreeFor);
+    return [{ ...day, entrees, note: entrees.length ? null : "No entrées listed." }];
   });
   const subtitle = week
     ? `Week of ${MONTH_NAMES[dates[0].getMonth()]} ${dates[0].getDate()}, ${dates[0].getFullYear()}`
     : formatDate(dates[0]);
-  return drawEntreesPng(`${group.school} - ${group.name}`, subtitle, days);
+  return drawEntreesPng(`${group.school} - ${group.name}`, subtitle, days, days.length > 1 ? 230 : 320);
 }
 
 // The clipboard write has to start synchronously inside the click (Safari
