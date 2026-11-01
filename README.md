@@ -5,7 +5,7 @@
 
 <!-- menu-badges:start -->
 [![menus through: November 2026](https://img.shields.io/badge/menus_through-November_2026-2e7d32)](https://lindbergh-school-menus-unofficial.asset-data.stream/status)
-[![checked: October 2026](https://img.shields.io/badge/checked-October_2026-lightgrey)](https://lindbergh-school-menus-unofficial.asset-data.stream/status)
+[![checked: November 2026](https://img.shields.io/badge/checked-November_2026-lightgrey)](https://lindbergh-school-menus-unofficial.asset-data.stream/status)
 <!-- menu-badges:end -->
 
 A static, mobile-friendly menu viewer for Lindbergh School District (Missouri),
