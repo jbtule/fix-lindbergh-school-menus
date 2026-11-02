@@ -1,7 +1,9 @@
 {
   "name": "Lindbergh School Menus (Unofficial)",
   "short_name": "Unofficial Menus",
+  "id": "/fix-lindbergh-school-menus/",
   "start_url": ".",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2f6f4f",
