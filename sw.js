@@ -9,7 +9,15 @@
 // saved. Only when the network fails is the saved copy served. Same-origin
 // GETs only - cross-origin requests (vendor API, ical feeds, badges) pass
 // through untouched.
-const CACHE = "app-v1";
+//
+// Cache Storage is shared by the whole origin, not scoped to this path, so
+// other apps on tools.tuley.name keep their caches in the same place. The
+// name is app-specific ("lsm-", matching the localStorage prefix) and
+// activate only clears this app's own old caches, never anyone else's.
+const CACHE_PREFIX = "lsm-";
+const CACHE = `${CACHE_PREFIX}v2`;
+// Name this app used before it had a prefix of its own.
+const LEGACY_CACHES = ["app-v1"];
 
 // Fetched up front so the app works offline after a single visit - without
 // this, files loaded before the worker first activated wouldn't be saved
@@ -48,7 +56,13 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => k !== CACHE && (k.startsWith(CACHE_PREFIX) || LEGACY_CACHES.includes(k)))
+            .map((k) => caches.delete(k)),
+        ),
+      )
       .then(() => self.clients.claim()),
   );
 });
