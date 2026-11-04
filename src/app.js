@@ -432,8 +432,10 @@ function roundRect(ctx, x, y, w, h, r, fill) {
   ctx.fill();
 }
 
-// One entree: its name, plus the positive badge (🥗/🌿) and allergen icons
-// (deduped - dairy and milk share 🥛) as one short icon string.
+// One entree: its name, its positive badge (🥗/🌿) if any, and its allergen
+// icons (deduped - dairy and milk share 🥛) as one short string. The badge
+// and allergens are kept apart so the badge reads as part of the name and
+// the allergens as a separate, quieter group.
 function copyEntreeFor(it) {
   const p = it.product;
   const positive = isAllergenFlagged(p.allergen_vegetarian)
@@ -442,10 +444,10 @@ function copyEntreeFor(it) {
   const icons = [
     ...new Set(ALLERGEN_DEFS.filter((d) => !d.positive && isAllergenFlagged(p[d.field])).map((d) => d.icon)),
   ];
-  return { name: p.name, icons: [positive, ...icons].filter(Boolean).join("") };
+  return { name: p.name, badge: positive, allergens: icons.join(" ") };
 }
 
-// { school, meal, subtitle, days: [{ heading, entrees: [{ name, icons }],
+// { school, meal, subtitle, days: [{ heading, entrees: [{ name, badge, allergens }],
 // note }] } -> Promise<Blob> (image/png). Laid out twice: once to measure
 // the height, once to draw.
 function drawEntreesPng({ school, meal, subtitle, days }) {
@@ -458,31 +460,39 @@ function drawEntreesPng({ school, meal, subtitle, days }) {
 
   const layout = (draw) => {
     let y = COPY_PAD;
-    // One centered line, in up to two fonts (text, then smaller icons).
-    const line = (text, font, color, size, icons = "") => {
+    // One centered line: text, then optional trailing pieces ({ text, font,
+    // gap, alpha }) such as the badge and allergen icons.
+    const line = (text, font, color, size, extras = []) => {
       ctx.font = font;
-      const textW = ctx.measureText(text).width;
-      const iconFont = `${Math.round(size * 0.8)}px ${COPY_FONT}`;
-      ctx.font = iconFont;
-      const iconW = icons ? 6 + ctx.measureText(icons).width : 0;
+      const pieces = [{ text, font, gap: 0, alpha: 1 }, ...extras];
+      const widths = pieces.map((p) => {
+        ctx.font = p.font;
+        return p.gap + ctx.measureText(p.text).width;
+      });
       if (draw) {
-        const x = mid - (textW + iconW) / 2;
+        let x = mid - widths.reduce((a, b) => a + b, 0) / 2;
         ctx.fillStyle = color;
-        ctx.font = font;
-        ctx.fillText(text, x, y + size);
-        if (icons) {
-          ctx.font = iconFont;
-          ctx.fillText(icons, x + textW + 6, y + size);
-        }
+        pieces.forEach((p, i) => {
+          ctx.font = p.font;
+          ctx.globalAlpha = p.alpha;
+          ctx.fillText(p.text, x + p.gap, y + size);
+          x += widths[i];
+        });
+        ctx.globalAlpha = 1;
       }
       y += size * 1.35;
     };
-    const wrapped = (text, font, color, size, icons = "") => {
-      ctx.font = `${Math.round(size * 0.8)}px ${COPY_FONT}`;
-      const iconW = icons ? 6 + ctx.measureText(icons).width : 0;
+    const extrasWidth = (extras) =>
+      extras.reduce((w, p) => {
+        ctx.font = p.font;
+        return w + p.gap + ctx.measureText(p.text).width;
+      }, 0);
+    // Wraps text to the width, putting the extras on its last line.
+    const wrapped = (text, font, color, size, extras = []) => {
+      const reserve = extrasWidth(extras);
       ctx.font = font;
-      const lines = wrapText(ctx, text, inner - iconW);
-      lines.forEach((l, i) => line(l, font, color, size, i === lines.length - 1 ? icons : ""));
+      const lines = wrapText(ctx, text, inner - reserve);
+      lines.forEach((l, i) => line(l, font, color, size, i === lines.length - 1 ? extras : []));
     };
 
     ctx.textAlign = "left";
@@ -509,7 +519,10 @@ function drawEntreesPng({ school, meal, subtitle, days }) {
       } else {
         day.entrees.forEach((e, i) => {
           if (i > 0) line("or", `400 12px ${COPY_FONT}`, COPY_COLORS.muted, 12);
-          wrapped(e.name, `500 16px ${COPY_FONT}`, COPY_COLORS.fg, 16, e.icons);
+          const extras = [];
+          if (e.badge) extras.push({ text: e.badge, font: `16px ${COPY_FONT}`, gap: 4, alpha: 1 });
+          if (e.allergens) extras.push({ text: e.allergens, font: `11px ${COPY_FONT}`, gap: 14, alpha: 0.7 });
+          wrapped(e.name, `500 16px ${COPY_FONT}`, COPY_COLORS.fg, 16, extras);
         });
       }
       y += 8;
