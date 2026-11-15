@@ -66,6 +66,15 @@ export const DISTRICT_SID = "1786638906029";
 // fetcher is one plausible explanation worth ruling out.
 export const ICAL_BASE_URL = "https://lindbergh-school-menus-unofficial.asset-data.stream";
 
+// Anonymous usage counts (see countUsage() in app.js): the app fetches an
+// empty file on ICAL_BASE_URL at most once a day per browser for each
+// thing counted - v/<calendar slug> for each menu on screen, a/<action>
+// for each action below - and Cloudflare's own per-path request totals
+// are the counts. Nothing identifies the visitor: no cookie, no id, no
+// query string. scripts/build-ical.js publishes one file per menu and one
+// per action listed here, so an action must be listed to get a file.
+export const USAGE_ACTIONS = ["copy", "print", "subscribe", "share"];
+
 // The district's own event calendar - runs on a shared Finalsite CMS
 // backend where calendar_ids is one global id space, not scoped per
 // subdomain (confirmed: e.g. Sperreng Middle School's own id, 6, returns

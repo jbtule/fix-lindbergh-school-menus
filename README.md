@@ -202,6 +202,23 @@ daily run already keeps them current):
 npx wrangler pages deploy dist/ical --project-name=lindbergh-school-menus-unofficial
 ```
 
+## Usage counts
+
+To know which menus and features actually get used, without tracking
+anyone: the build also publishes an empty file per calendar under
+`v/` (e.g. `v/truman-lunch`) and one per action under `a/` (`copy`,
+`print`, `subscribe`, `share` - see `USAGE_ACTIONS` in `src/config.js`).
+The app fetches a menu's `v/` file when it's on screen and an action's
+`a/` file when it's used, at most once a day per browser for each, with
+no cookie, id, query string or referrer (see `countUsage()` in
+`src/app.js`). Cloudflare's **top paths** report for the zone is the
+whole dashboard: `v/<menu>` totals over 30 days, divided by 30, roughly
+equal the browsers viewing that menu on a given day, and the matching
+`<menu>.ics` totals show calendar subscriptions. Skipped on localhost
+and for browsers sending Global Privacy Control or Do Not Track;
+`USAGE_COUNTS_ENABLED` in `src/app.js` turns it off entirely. Cloudflare
+samples its analytics, so very small counts are approximate.
+
 ## License
 
 MIT - see [LICENSE](LICENSE).

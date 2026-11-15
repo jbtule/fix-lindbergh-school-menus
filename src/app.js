@@ -15,6 +15,7 @@ import {
   VEGAN_DISQUALIFYING_FIELDS,
   IDEA_CENTER_GRADE_BY_WEEKDAY,
   ICAL_BASE_URL,
+  USAGE_ACTIONS,
   mealEmoji,
   SNACK_MEAL_NAMES,
   isSnackSideItem,
@@ -775,6 +776,7 @@ function wireSharePanel() {
   if (canNativeShare) {
     goBtn.textContent = "Share\u2026";
     goBtn.addEventListener("click", async () => {
+      countAction("share");
       try {
         await navigator.share(shareData);
         closeSharePanel();
@@ -787,6 +789,7 @@ function wireSharePanel() {
   }
   goBtn.textContent = "Copy link";
   goBtn.addEventListener("click", async () => {
+    countAction("share");
     try {
       await navigator.clipboard.writeText(SHARE_URL);
       goBtn.textContent = "Copied!";
@@ -1116,6 +1119,7 @@ async function renderSections() {
   }
   emptyState.hidden = true;
   pickerToggle.classList.remove("pulse");
+  for (const group of groups) countUsage(`v/${icsSlugFor(group)}`);
 
   container.innerHTML = "";
   const sectionEls = groups.map((group) => {
@@ -1204,6 +1208,48 @@ function syncWeekScrolls() {
       { passive: true }
     );
   }
+}
+
+// ---------- Usage counts ----------
+
+// Which menus get viewed and which actions get used, counted without
+// identifying anyone: fetches an empty file on ICAL_BASE_URL (v/<calendar
+// slug> or a/<action> - see USAGE_ACTIONS in config.js) at most once a
+// day per browser per path, and Cloudflare's per-path request totals in
+// that zone's analytics are the counts. No cookie, id, query string or
+// referrer is sent, so a count is "browsers that viewed/used it that day"
+// and nothing more. Skipped on localhost and when the browser asks not to
+// be tracked (Global Privacy Control or Do Not Track). Set false to turn
+// it off entirely.
+const USAGE_COUNTS_ENABLED = true;
+const USAGE_STORAGE_KEY = "lsm.usageCounted";
+const countedThisPage = new Set(); // backstop if localStorage is unavailable
+
+function countUsage(path) {
+  if (!USAGE_COUNTS_ENABLED || countedThisPage.has(path)) return;
+  if (["localhost", "127.0.0.1"].includes(location.hostname)) return;
+  if (navigator.globalPrivacyControl || navigator.doNotTrack === "1") return;
+  countedThisPage.add(path);
+  const today = toISODate(new Date());
+  try {
+    const saved = JSON.parse(localStorage.getItem(USAGE_STORAGE_KEY) || "null");
+    const paths = saved?.date === today ? saved.paths : [];
+    if (paths.includes(path)) return;
+    localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify({ date: today, paths: [...paths, path] }));
+  } catch {
+    /* storage unavailable - countedThisPage still limits it to once per page load */
+  }
+  fetch(`${ICAL_BASE_URL}/${path}`, {
+    mode: "no-cors",
+    cache: "no-store",
+    credentials: "omit",
+    referrerPolicy: "no-referrer",
+    keepalive: true,
+  }).catch(() => {});
+}
+
+function countAction(action) {
+  if (USAGE_ACTIONS.includes(action)) countUsage(`a/${action}`);
 }
 
 function toISODate(d) {
@@ -2139,7 +2185,9 @@ document.getElementById("actionPopoverSubscribe").addEventListener("click", () =
 });
 document.getElementById("actionPopoverCopy").addEventListener("click", (e) => {
   e.stopPropagation(); // keep the popover open to show the result
-  if (actionMenuGroup) copyEntrees(actionMenuGroup, e.currentTarget);
+  if (!actionMenuGroup) return;
+  countAction("copy");
+  copyEntrees(actionMenuGroup, e.currentTarget);
 });
 // Closing on outside click/scroll - opening itself is handled per-icon in
 // renderSections(), since each icon needs to know which menu it's for.
@@ -2155,6 +2203,7 @@ document.getElementById("printPanelGo").addEventListener("click", () => {
   const range = document.querySelector('input[name="printRange"]:checked').value;
   closePrintPanel();
   if (!group) return;
+  countAction("print");
   if (range === "month") printMonth(group);
   else printWeek(group);
 });
@@ -2167,7 +2216,10 @@ for (const radio of document.querySelectorAll('input[name="calendarApp"]')) {
 // Same "picking an action closes the panel" pattern as the print panel -
 // doesn't wait to see whether the webcal:/Google/Outlook handoff actually
 // succeeds, just like printPanelGo doesn't wait for the print dialog.
-document.getElementById("subscribeLink").addEventListener("click", closeSubscribePanel);
+document.getElementById("subscribeLink").addEventListener("click", () => {
+  countAction("subscribe");
+  closeSubscribePanel();
+});
 document.getElementById("subscribePanelClose").addEventListener("click", closeSubscribePanel);
 document.getElementById("subscribePanelScrim").addEventListener("click", closeSubscribePanel);
 
