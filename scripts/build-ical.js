@@ -18,6 +18,7 @@ import {
   mealEmoji,
   SNACK_MEAL_NAMES,
   isSnackSideItem,
+  USAGE_ACTIONS,
 } from "../src/config.js";
 import { fetchMonthsList, fetchMenuItems } from "../src/menu-api.js";
 import { icsSlugFor } from "../src/ical-naming.js";
@@ -416,6 +417,16 @@ async function main() {
   } catch (err) {
     console.error(`Failed to build no-school-days.json: ${err.message}`);
   }
+
+  // Empty files the app fetches to count usage (see USAGE_ACTIONS in
+  // config.js) - one per calendar slug, so a menu's view count sits next
+  // to its subscription count, and one per action. Written for every
+  // target, built or not: a failed calendar build doesn't stop it being
+  // viewed. Not empty-empty, so no deploy tool trips over a zero-byte file.
+  await mkdir(new URL("v/", OUT_DIR), { recursive: true });
+  await mkdir(new URL("a/", OUT_DIR), { recursive: true });
+  for (const target of targets) await writeFile(new URL(`v/${target.slug}`, OUT_DIR), "ok\n");
+  for (const action of USAGE_ACTIONS) await writeFile(new URL(`a/${action}`, OUT_DIR), "ok\n");
 
   if (ok === 0) process.exitCode = 1;
 }
