@@ -363,6 +363,47 @@ export const ALLERGEN_DEFS = [
   { field: "allergen_vegetarian", label: "Vegetarian", icon: "🥗", positive: true },
 ];
 
+// Allergen flags the district announced but its menu data doesn't have
+// yet (e.g. a family email about a last-minute ingredient change). Each
+// entry adds flags to one product, by exact name, on one date, on every
+// menu serving it that day - applied by applyAllergenCorrections() below
+// wherever menu items are read (app.js and scripts/build-ical.js), so the
+// badge, the Dietary filter, Print, Copy Entrées and the calendar feeds all
+// pick it up. Safe to delete an entry once its date has passed.
+//   date   - "YYYY-MM-DD"
+//   name   - the product name exactly as the menu data spells it
+//   add    - ALLERGEN_DEFS fields to set
+//   source - where the correction came from
+export const ALLERGEN_CORRECTIONS = [
+  {
+    date: "2026-11-18",
+    name: "Herb Roasted Turkey w/Stuffing & Roll",
+    add: ["allergen_treenuts"],
+    source: "District email to families, 2026-11-18: the stuffing mix is made in a facility that also processes tree nuts",
+  },
+];
+
+// items: one month's menu items ({ day, product }) for year/month (month
+// 0-based, like Date). Returns them with ALLERGEN_CORRECTIONS applied;
+// items without a correction are returned as-is, and the input is never
+// modified (it may be the shared cached copy).
+export function applyAllergenCorrections(items, year, month) {
+  const corrections = ALLERGEN_CORRECTIONS.filter((c) => {
+    const [y, m] = c.date.split("-").map(Number);
+    return y === year && m === month + 1;
+  });
+  if (corrections.length === 0) return items;
+  return items.map((it) => {
+    const matches = corrections.filter(
+      (c) => Number(c.date.slice(8)) === it.day && it.product?.name === c.name,
+    );
+    if (matches.length === 0) return it;
+    const product = { ...it.product };
+    for (const c of matches) for (const field of c.add) product[field] = 1;
+    return { ...it, product };
+  });
+}
+
 // Vegan isn't a real API field - derived as vegetarian with none of the
 // known animal-product flags set (dairy, milk, egg). Doesn't factor in
 // allergen_other (too ambiguous to safely include or exclude either way).
