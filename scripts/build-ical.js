@@ -19,6 +19,7 @@ import {
   SNACK_MEAL_NAMES,
   isSnackSideItem,
   USAGE_ACTIONS,
+  applyAllergenCorrections,
 } from "../src/config.js";
 import { fetchMonthsList, fetchMenuItems } from "../src/menu-api.js";
 import { icsSlugFor } from "../src/ical-naming.js";
@@ -268,7 +269,7 @@ async function buildCalendar(target) {
     const month = Number(m.month); // 0-based, matches JS Date
     const mUpdated = Number(m.updatedAt);
     if (Number.isFinite(mUpdated) && (!updatedAt || mUpdated > updatedAt)) updatedAt = mUpdated;
-    const items = await fetchMenuItems(docId);
+    const items = applyAllergenCorrections(await fetchMenuItems(docId), year, month);
     const byDay = new Map();
     for (const it of items) {
       if (!it.product || isHiddenFromCalendar(it.product)) continue;

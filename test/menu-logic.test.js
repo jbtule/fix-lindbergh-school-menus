@@ -193,3 +193,21 @@ describe("isSnackSideItem / SNACK_MEAL_NAMES", () => {
     assert.ok(!isSnackSideItem({ name: "Delicious Blueberry Muffin", category: "Entrees" }));
   });
 });
+
+import { applyAllergenCorrections, ALLERGEN_CORRECTIONS } from "../src/config.js";
+
+test("applyAllergenCorrections flags only the named product on its date", () => {
+  const c = ALLERGEN_CORRECTIONS[0];
+  const [y, m, d] = c.date.split("-").map(Number);
+  const items = [
+    { day: d, product: { name: c.name, allergen_treenuts: 0 } },
+    { day: d, product: { name: "Grilled Cheese Sandwich", allergen_treenuts: 0 } },
+    { day: d + 1, product: { name: c.name, allergen_treenuts: 0 } },
+  ];
+  const out = applyAllergenCorrections(items, y, m - 1);
+  assert.equal(out[0].product.allergen_treenuts, 1);
+  assert.equal(out[1], items[1]);
+  assert.equal(out[2], items[2]);
+  assert.equal(items[0].product.allergen_treenuts, 0, "input not modified");
+  assert.equal(applyAllergenCorrections(items, y, m), items, "other months untouched");
+});

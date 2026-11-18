@@ -16,6 +16,7 @@ import {
   IDEA_CENTER_GRADE_BY_WEEKDAY,
   ICAL_BASE_URL,
   USAGE_ACTIONS,
+  applyAllergenCorrections,
   mealEmoji,
   SNACK_MEAL_NAMES,
   isSnackSideItem,
@@ -1336,7 +1337,7 @@ async function fetchDayItems(info, date) {
 
   let items;
   try {
-    items = await fetchMenuItems(docId);
+    items = applyAllergenCorrections(await fetchMenuItems(docId), date.getFullYear(), date.getMonth());
   } catch (e) {
     return { kind: "error", message: `Couldn't load items (${e.message}).` };
   }
@@ -1403,8 +1404,9 @@ function peekDayItems(info, date) {
     (m) => Number(m.month) === date.getMonth() && Number(m.year) === date.getFullYear()
   );
   if (!match) return null;
-  const items = peekCachedMenuItems(match._id.$id);
-  if (!items) return null;
+  const cached = peekCachedMenuItems(match._id.$id);
+  if (!cached) return null;
+  const items = applyAllergenCorrections(cached, date.getFullYear(), date.getMonth());
   const dayItems = items.filter(
     (it) => it.day === date.getDate() && it.product && !isHiddenFromWebView(it.product)
   );
