@@ -4,7 +4,7 @@
 · built with [Claude Code](https://claude.com/claude-code)
 
 <!-- menu-badges:start -->
-[![menus through: November 2026](https://img.shields.io/badge/menus_through-November_2026-2e7d32)](https://lindbergh-school-menus-unofficial.asset-data.stream/status)
+[![menus through: December 2026](https://img.shields.io/badge/menus_through-December_2026-2e7d32)](https://lindbergh-school-menus-unofficial.asset-data.stream/status)
 [![checked: November 2026](https://img.shields.io/badge/checked-November_2026-lightgrey)](https://lindbergh-school-menus-unofficial.asset-data.stream/status)
 <!-- menu-badges:end -->
 
